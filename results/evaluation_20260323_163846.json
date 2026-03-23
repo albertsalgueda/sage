@@ -1,0 +1,154 @@
+{
+  "timestamp": "2026-03-23T16:40:03.669627",
+  "checks": {
+    "sql_tables": {
+      "CF_Clasificacion": {
+        "present": true,
+        "fields_found": [
+          "CF_Posicion",
+          "CF_Equipo",
+          "CF_PartidosJugados",
+          "CF_PartidosGanados",
+          "CF_PartidosEmpatados",
+          "CF_PartidosPerdidos",
+          "CF_GolesFavor",
+          "CF_GolesContra",
+          "CF_Puntos",
+          "CF_Positivos",
+          "CF_DiferenciaGoles"
+        ],
+        "fields_missing": [],
+        "field_score": 1.0
+      },
+      "CF_Equipos": {
+        "present": true,
+        "fields_found": [
+          "CF_CodigoEquipo",
+          "CF_Nombre",
+          "CF_JuegaEuropa",
+          "CF_Competicion"
+        ],
+        "fields_missing": [],
+        "field_score": 1.0
+      },
+      "CF_Resultados": {
+        "present": true,
+        "fields_found": [
+          "CF_Jornada",
+          "CF_EquipoLocal",
+          "CF_GolesLocal",
+          "CF_EquipoVisitante",
+          "CF_GolesVisitante",
+          "CF_Fecha"
+        ],
+        "fields_missing": [],
+        "field_score": 1.0
+      }
+    },
+    "primary_keys": {
+      "CF_Clasificacion": {
+        "has_pk": true,
+        "correct_columns": true
+      },
+      "CF_Equipos": {
+        "has_pk": true,
+        "correct_columns": true
+      },
+      "CF_Resultados": {
+        "has_pk": true,
+        "correct_columns": true
+      }
+    },
+    "4gl_keywords": {
+      "AbreConsulta": {
+        "present": true,
+        "description": "Opens a query/recordset"
+      },
+      "Seleccion": {
+        "present": true,
+        "description": "Filters records"
+      },
+      "Primero": {
+        "present": true,
+        "description": "Moves to first record"
+      },
+      "Siguiente": {
+        "present": true,
+        "description": "Moves to next record"
+      },
+      "EjecutaSQL": {
+        "present": true,
+        "description": "Executes raw SQL"
+      },
+      "EjecutaBorra": {
+        "present": false,
+        "description": "Deletes records"
+      },
+      "FrmControl": {
+        "present": true,
+        "description": "Form control (screen scripts)"
+      },
+      "MsgBox": {
+        "present": true,
+        "description": "Message box"
+      },
+      "Gosub": {
+        "present": true,
+        "description": "Subroutine call"
+      },
+      "Whilen": {
+        "present": true,
+        "description": "While loop"
+      },
+      "Ifn": {
+        "present": true,
+        "description": "If condition"
+      },
+      "ListadoEjecuta": {
+        "present": true,
+        "description": "Launches a report"
+      },
+      "IniciaRegistro": {
+        "present": true,
+        "description": "Initializes a new record"
+      },
+      "CierraRegistro": {
+        "present": true,
+        "description": "Closes a recordset"
+      },
+      "Nuevo": {
+        "present": true,
+        "description": "Inserts new record"
+      },
+      "_summary": {
+        "found": 14,
+        "total": 15,
+        "score": 0.9333333333333333
+      }
+    },
+    "ranking_query": {
+      "has_select": true,
+      "has_join": true,
+      "order_by_puntos": true,
+      "order_by_positivos": true,
+      "order_by_dg": true,
+      "order_by_nombre": true,
+      "score": 1.0
+    },
+    "similarity": {
+      "overall_normalized": 0.0235,
+      "sql_similarity": 0.1006,
+      "4gl_similarity": 0.098
+    }
+  },
+  "summary": {
+    "sql_tables_avg": 1.0,
+    "primary_keys_avg": 1.0,
+    "4gl_keyword_coverage": 0.9333333333333333,
+    "ranking_query_score": 1.0,
+    "overall_similarity": 0.0235,
+    "overall_grade": 79.1
+  },
+  "model": "claude-sonnet-4-20250514",
+  "generated_file": "generated_20260323_163846.md"
+}

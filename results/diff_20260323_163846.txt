@@ -1,0 +1,769 @@
+--- solution (expected)
++++ generated (actual)
+@@ -1,305 +1,479 @@
+-# Extracted Solution from Cert_JaviCoboHAvanzada.dat
+-
+-Reference solution for the certification prompt. Extracted via `strings` from the binary .dat file.
+-
+-## Manifest
+-
+-```
+-Tables:      CF_Clasificacion, CF_Equipos, CF_Resultados
+-Fields:      20 total
+-Queries:     CF_Clasificacion, CF_ClasificacionLiga_Lis, CF_ClasificacionOrden, CF_Equipos, CF_Resultados
+-Screens:     CF_Equipos, CF_Resultados
+-Calculations: CF_Clasificacion, CF_Equipos, CF_Resultados
+-Reports:     CF_ClasificacionOrden_Lis
+-Operations:  OP_CF_Clasificacion, OP_CF_Equipos, OP_CF_Resultados
+-User menu:   Clasificación, Resultados, Equipos
+-```
++I'll generate all the required artifacts for the CF_ module for managing teams, results, and league classification calculation.
+ 
+ ## SQL — CREATE TABLE
+ 
+ ```sql
+-CREATE TABLE dbo.[CF_Clasificacion] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Posicion] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Equipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosJugados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosGanados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosEmpatados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosPerdidos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesFavor] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesContra] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Puntos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Positivos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_DiferenciaGoles] smallint NOT NULL DEFAULT ((0))
+-)
+-
+-CREATE TABLE dbo.[CF_Equipos] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_CodigoEquipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Nombre] varchar(30) NOT NULL DEFAULT (''),
+-  [CF_JuegaEuropa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Competicion] smallint NOT NULL DEFAULT ((1))
+-)
+-
+-CREATE TABLE dbo.[CF_Resultados] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Jornada] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Fecha] datetime NOT NULL DEFAULT (getdate())
+-)
++-- Tabla de Equipos
++CREATE TABLE [dbo].[CF_Equipos](
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_CodigoEquipo] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Nombre] [varchar](30) NOT NULL DEFAULT (''),
++    [CF_JuegaEuropa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Competicion] [smallint] NOT NULL DEFAULT ((0))
++) ON [PRIMARY]
++
++-- Tabla de Resultados
++CREATE TABLE [dbo].[CF_Resultados](
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Jornada] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_EquipoLocal] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesLocal] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_EquipoVisitante] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesVisitante] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Fecha] [datetime] NOT NULL DEFAULT (getdate())
++) ON [PRIMARY]
++
++-- Tabla de Clasificación
++CREATE TABLE [dbo].[CF_Clasificacion](
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Posicion] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Equipo] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosJugados] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosGanados] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosEmpatados] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosPerdidos] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesFavor] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesContra] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Puntos] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Positivos] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_DiferenciaGoles] [smallint] NOT NULL DEFAULT ((0))
++) ON [PRIMARY]
+ ```
+ 
+ ## SQL — PRIMARY KEYS
+ 
+ ```sql
+-ALTER TABLE [CF_Clasificacion] WITH NOCHECK ADD CONSTRAINT [CF_Clasificacion_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Posicion],[CF_Equipo]) ON [PRIMARY]
+-
+-ALTER TABLE [CF_Equipos] WITH NOCHECK ADD CONSTRAINT [CF_Equipos_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_CodigoEquipo]) ON [PRIMARY]
+-
+-ALTER TABLE [CF_Resultados] WITH NOCHECK ADD CONSTRAINT [CF_Resultados_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Jornada],[CF_EquipoLocal],[CF_EquipoVisitante]) ON [PRIMARY]
+-```
+-
+-## Query — CF_ClasificacionOrden (ranking query)
++ALTER TABLE [CF_Equipos] WITH NOCHECK ADD CONSTRAINT [CF_Equipos_Principal] 
++PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_CodigoEquipo]) ON [PRIMARY]
++
++ALTER TABLE [CF_Resultados] WITH NOCHECK ADD CONSTRAINT [CF_Resultados_Principal] 
++PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Jornada],[CF_EquipoLocal],[CF_EquipoVisitante]) ON [PRIMARY]
++
++ALTER TABLE [CF_Clasificacion] WITH NOCHECK ADD CONSTRAINT [CF_Clasificacion_Principal] 
++PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Posicion]) ON [PRIMARY]
++```
++
++## SQL — Queries
+ 
+ ```sql
+-SELECT * FROM CF_Clasificacion
+-LEFT JOIN CF_Equipos ON
+-  CF_Equipos.CodigoEmpresa = CF_Clasificacion.CodigoEmpresa
+-  AND CF_Equipos.CF_CodigoEquipo = CF_Clasificacion.CF_Equipo
+-ORDER BY
+-  CF_Puntos DESC,
+-  CF_Positivos DESC,
+-  CF_DiferenciaGoles DESC,
+-  CF_PartidosJugados DESC,
+-  CF_Nombre ASC
+-```
+-
+-## Screen — CF_Equipos
+-
+-```
+-Title: Mantenimiento de CF_Equipos
+-Controls: lblCF_CodigoEquipo, lblCF_Nombre, lblCF_JuegaEuropa, lblCF_Competicion,
+-          txtCF_CodigoEquipo, txtCF_Nombre, txtCF_JuegaEuropa, txtCF_Competicion,
+-          grdDataForm
+-Data source: CF_Equipos
+-Grid layout: lytCF_Equipos (CF_CodigoEquipo, CF_Nombre, CF_JuegaEuropa, CF_Competicion)
+-Labels: "Cod. Equipo", "Nombre Equipo", "Juega en Europa", "Competición"
+-List of values (Competicion): "Vacio;Europa League;Champions League"
+-Events: Inicio, AlCambiar, AntesInsertar, DespuesInsertar, AntesModificar, DespuesModificar
+-```
+-
+-## Screen — CF_Resultados
+-
+-```
+-Title: Mantenimiento de CF_Resultados
+-Controls: lblCF_Jornada, lblCF_Fecha, Frame (Local), Frame2 (Visitante),
+-          txtCF_Jornada, txtCF_Fecha, txtCF_EquipoLocal, txtCF_GolesLocal, txtLocal,
+-          txtCF_EquipoVisitante, txtCF_GolesVisitante, txtVisitante, grdDataForm
+-Relations: RelCF_EquiposL (CF_CodigoEquipo={txtCF_EquipoLocal}),
+-           RelCF_EquiposV (CF_CodigoEquipo={txtCF_EquipoVisitante})
+-Defaults: CF_Fecha=NOW, CF_GolesLocal=0, CF_GolesVisitante=0
+-Grid: lytCF_Resultados (Jornada, EquipoLocal, NombreL, EquipoVisitante, NombreV, GolesLocal, GolesVisitante, Fecha)
+-```
+-
+-## 4GL — CF_Equipos Screen Script
+-
+-```vb
++-- Query para calcular clasificación ordenada
++SELECT 
++    ROW_NUMBER() OVER (
++        ORDER BY CF_Puntos DESC, CF_Positivos DESC, CF_DiferenciaGoles DESC, 
++        CF_PartidosJugados ASC, E.CF_Nombre ASC
++    ) as NuevaPosicion,
++    C.CF_Equipo,
++    C.CF_PartidosJugados,
++    C.CF_PartidosGanados,
++    C.CF_PartidosEmpatados,
++    C.CF_PartidosPerdidos,
++    C.CF_GolesFavor,
++    C.CF_GolesContra,
++    C.CF_Puntos,
++    C.CF_Positivos,
++    C.CF_DiferenciaGoles,
++    E.CF_Nombre
++FROM CF_Clasificacion C
++INNER JOIN CF_Equipos E ON C.CodigoEmpresa = E.CodigoEmpresa AND C.CF_Equipo = E.CF_CodigoEquipo
++WHERE C.CodigoEmpresa = ?
++ORDER BY CF_Puntos DESC, CF_Positivos DESC, CF_DiferenciaGoles DESC, 
++         CF_PartidosJugados ASC, E.CF_Nombre ASC
++```
++
++## 4GL — Screen Scripts
++
++### CF_Equipos Screen Script
++```4gl
++'===== CF_Equipos - Mantenimiento de Equipos =====
++
++'=== Variables ===
++Dim RegEquipos As Registro
++Dim RegEquipos.CodigoEmpresa As Campo(CF_Equipos, CodigoEmpresa) smallint
++Dim RegEquipos.CF_CodigoEquipo As Campo(CF_Equipos, CF_CodigoEquipo) smallint
++Dim RegEquipos.CF_Nombre As Campo(CF_Equipos, CF_Nombre) varchar
++Dim RegEquipos.CF_JuegaEuropa As Campo(CF_Equipos, CF_JuegaEuropa) smallint
++Dim RegEquipos.CF_Competicion As Campo(CF_Equipos, CF_Competicion) smallint
++
++'=== Evento Inicio ===
+ Inicio:
+-    FrmControl("CF_Equipos", "CONTROLENABLED", 4, "txtCF_Competicion", "0","")
+-    FrmControl("CF_Equipos", "CONTROLENABLED", 4, "grdDataForm.CF_Competicion", "0","")
+-    FrmControl("CF_Equipos", "FIELDVALUE", 4, "grdDataForm.CF_Competicion", "1","")
+-
++    RegEquipos.CodigoEmpresa = Apli.ApliCodigoEmpresa
++    'Establecer valores por defecto
++    FrmControl("CF_Equipos", "FIELDVALUE", "txtCF_JuegaEuropa", "0")
++    FrmControl("CF_Equipos", "FIELDVALUE", "txtCF_Competicion", "0")
++    'Inhabilitar competición inicialmente
++    FrmControl("CF_Equipos", "CONTROLENABLED", "txtCF_Competicion", "0")
++    Retorno
++
++'=== Evento AlCambiar ===
+ AlCambiar:
+-    Ifn CF_Equipos.CF_JuegaEuropa <> 0 Then
+-        FrmControl("CF_Equipos", "CONTROLENABLED", 4, "txtCF_Competicion", "-1","")
+-        FrmControl("CF_Equipos", "CONTROLENABLED", 4, "grdDataForm.CF_Competicion", "-1","")
++    'Control del campo JuegaEuropa
++    Ifn Apli.CampoModificado = "txtCF_JuegaEuropa" Then
++        Ifn RegEquipos.CF_JuegaEuropa = 0 Then
++            'No juega en Europa - inhabilitar y limpiar competición
++            FrmControl("CF_Equipos", "CONTROLENABLED", "txtCF_Competicion", "0")
++            FrmControl("CF_Equipos", "FIELDVALUE", "txtCF_Competicion", "0")
++            RegEquipos.CF_Competicion = 0
++        Else
++            'Juega en Europa - habilitar competición
++            FrmControl("CF_Equipos", "CONTROLENABLED", "txtCF_Competicion", "1")
++            FrmControl("CF_Equipos", "REQUIREDVALUE", "txtCF_Competicion", "1")
++        Endif
++    Endif
++    Retorno
++
++'=== Evento AntesInsertar ===
++AntesInsertar:
++    'Validar competición si juega en Europa
++    Ifn RegEquipos.CF_JuegaEuropa <> 0 Then
++        Ifn RegEquipos.CF_Competicion = 0 Then
++            MsgBox("Debe seleccionar una competición europea", 16, "Error")
++            Apli.CancelarAccion = "-1"
++            Retorno
++        Endif
++    Endif
++    Retorno
++
++'=== Evento AntesModificar ===
++AntesModificar:
++    'Validar competición si juega en Europa
++    Ifn RegEquipos.CF_JuegaEuropa <> 0 Then
++        Ifn RegEquipos.CF_Competicion = 0 Then
++            MsgBox("Debe seleccionar una competición europea", 16, "Error")
++            Apli.CancelarAccion = "-1"
++            Retorno
++        Endif
++    Endif
++    Retorno
++```
++
++### CF_Resultados Screen Script
++```4gl
++'===== CF_Resultados - Mantenimiento de Resultados =====
++
++'=== Variables ===
++Dim RegResultados As Registro
++Dim RegResultados.CodigoEmpresa As Campo(CF_Resultados, CodigoEmpresa) smallint
++Dim RegResultados.CF_Jornada As Campo(CF_Resultados, CF_Jornada) smallint
++Dim RegResultados.CF_EquipoLocal As Campo(CF_Resultados, CF_EquipoLocal) smallint
++Dim RegResultados.CF_GolesLocal As Campo(CF_Resultados, CF_GolesLocal) smallint
++Dim RegResultados.CF_EquipoVisitante As Campo(CF_Resultados, CF_EquipoVisitante) smallint
++Dim RegResultados.CF_GolesVisitante As Campo(CF_Resultados, CF_GolesVisitante) smallint
++Dim RegResultados.CF_Fecha As Campo(CF_Resultados, CF_Fecha) datetime
++
++Dim RegEquipoLocal As Registro
++Dim RegEquipoLocal.CF_Nombre As Campo(CF_Equipos, CF_Nombre) varchar
++Dim RegEquipoVisitante As Registro
++Dim RegEquipoVisitante.CF_Nombre As Campo(CF_Equipos, CF_Nombre) varchar
++
++'=== Evento Inicio ===
++Inicio:
++    RegResultados.CodigoEmpresa = Apli.ApliCodigoEmpresa
++    'Establecer valores por defecto
++    FrmControl("CF_Resultados", "FIELDVALUE", "txtCF_GolesLocal", "0")
++    FrmControl("CF_Resultados", "FIELDVALUE", "txtCF_GolesVisitante", "0")
++    FrmControl("CF_Resultados", "FIELDVALUE", "txtCF_Fecha", Ahora())
++    Retorno
++
++'=== Evento AlCambiar ===
++AlCambiar:
++    'Control cambio de equipo local
++    Ifn Apli.CampoModificado = "txtCF_EquipoLocal" Then
++        Gosub ActualizarNombreLocal
++    Endif
++    
++    'Control cambio de equipo visitante
++    Ifn Apli.CampoModificado = "txtCF_EquipoVisitante" Then
++        Gosub ActualizarNombreVisitante
++    Endif
++    
++    'Validar jornada
++    Ifn Apli.CampoModificado = "txtCF_Jornada" Then
++        Ifn RegResultados.CF_Jornada < 1 Or RegResultados.CF_Jornada > 38 Then
++            MsgBox("La jornada debe estar entre 1 y 38", 16, "Error")
++            FrmControl("CF_Resultados", "FIELDVALUE", "txtCF_Jornada", "1")
++        Endif
++    Endif
++    Retorno
++
++'=== Evento AntesInsertar ===
++AntesInsertar:
++    'Validar que local y visitante sean diferentes
++    Ifn RegResultados.CF_EquipoLocal = RegResultados.CF_EquipoVisitante Then
++        MsgBox("El equipo local y visitante no pueden ser el mismo", 16, "Error")
++        Apli.CancelarAccion = "-1"
++    Endif
++    Retorno
++
++'=== Evento AntesModificar ===
++AntesModificar:
++    'Validar que local y visitante sean diferentes
++    Ifn RegResultados.CF_EquipoLocal = RegResultados.CF_EquipoVisitante Then
++        MsgBox("El equipo local y visitante no pueden ser el mismo", 16, "Error")
++        Apli.CancelarAccion = "-1"
++    Endif
++    Retorno
++
++'=== Subrutinas ===
++ActualizarNombreLocal:
++    AbreConsulta(RegEquipoLocal, "CF_Equipos", "CodigoEmpresa=" & RegResultados.CodigoEmpresa & " AND CF_CodigoEquipo=" & RegResultados.CF_EquipoLocal)
++    Ifn Primero(RegEquipoLocal) = 0 Then
++        FrmControl("CF_Resultados", "FIELDVALUE", "txtNombreLocal", RegEquipoLocal.CF_Nombre)
+     Else
+-        FrmControl("CF_Equipos", "CONTROLENABLED", 4, "txtCF_Competicion", "0","")
+-        FrmControl("CF_Equipos", "CONTROLENABLED", 4, "grdDataForm.CF_Competicion", "0","")
+-        FrmControl("CF_Equipos", "FIELDVALUE", 4, "grdDataForm.CF_Competicion", "1","")
+-        FrmControl("CF_Equipos", "FIELDVALUE", 4, "txtCF_Competicion", "1","")
+-    Endif
+-
+-AntesInsertar:
+-    Ifn CF_Equipos.CF_JuegaEuropa <> 0 Then
+-        Ifn CF_Equipos.CF_Competicion = 1 Then
+-            MsgBox("Si el equipo juega en Europa, se tiene que informar competición", 32, "Competición")
+-            Apli.CancelarAccion = "-1"
+-        Endif
+-    Endif
+-' (Same validation repeated in DespuesInsertar, AntesModificar, DespuesModificar)
+-```
+-
+-## 4GL — CF_Clasificacion Calculation Script (full)
+-
+-```vb
+-Dim CF_Clasificacion As Registro
+-Dim CF_Resultados As Registro
+-Dim CF_Equipos As Registro
+-Dim CF_ClasificacionOrden As Registro
+-' ... (Dim declarations for all fields) ...
+-Dim PartidosJugados As Numero
+-Dim PartidosGanados As Numero
+-Dim PartidosEmpatados As Numero
+-Dim PartidosPerdidos As Numero
+-Dim GolesFavor As Numero
+-Dim GolesContra As Numero
+-Dim Puntos As Numero
+-Dim Positivos As Numero
+-Dim DiferenciaGoles As Numero
+-
++        FrmControl("CF_Resultados", "FIELDVALUE", "txtNombreLocal", "")
++    Endif
++    CierraRegistro(RegEquipoLocal)
++    Retorno
++
++ActualizarNombreVisitante:
++    AbreConsulta(RegEquipoVisitante, "CF_Equipos", "CodigoEmpresa=" & RegResultados.CodigoEmpresa & " AND CF_CodigoEquipo=" & RegResultados.CF_EquipoVisitante)
++    Ifn Primero(RegEquipoVisitante) = 0 Then
++        FrmControl("CF_Resultados", "FIELDVALUE", "txtNombreVisitante", RegEquipoVisitante.CF_Nombre)
++    Else
++        FrmControl("CF_Resultados", "FIELDVALUE", "txtNombreVisitante", "")
++    Endif
++    CierraRegistro(RegEquipoVisitante)
++    Retorno
++```
++
++## 4GL — Calculation Scripts
++
++### CF_CalculoClasificacion Script
++```4gl
++'===== CF_CalculoClasificacion - Cálculo de Clasificación =====
++
++'=== Variables ===
++Dim RegEquipos As Registro
++Dim RegEquipos.CF_CodigoEquipo As Campo(CF_Equipos, CF_CodigoEquipo) smallint
++Dim RegEquipos.CF_Nombre As Campo(CF_Equipos, CF_Nombre) varchar
++
++Dim RegResultados As Registro
++Dim RegResultados.CF_Jornada As Campo(CF_Resultados, CF_Jornada) smallint
++Dim RegResultados.CF_EquipoLocal As Campo(CF_Resultados, CF_EquipoLocal) smallint
++Dim RegResultados.CF_GolesLocal As Campo(CF_Resultados, CF_GolesLocal) smallint
++Dim RegResultados.CF_EquipoVisitante As Campo(CF_Resultados, CF_EquipoVisitante) smallint
++Dim RegResultados.CF_GolesVisitante As Campo(CF_Resultados, CF_GolesVisitante) smallint
++
++Dim RegClasif As Registro
++Dim RegClasif.CF_Posicion As Campo(CF_Clasificacion, CF_Posicion) smallint
++Dim RegClasif.CF_Equipo As Campo(CF_Clasificacion, CF_Equipo) smallint
++Dim RegClasif.CF_PartidosJugados As Campo(CF_Clasificacion, CF_PartidosJugados) smallint
++Dim RegClasif.CF_PartidosGanados As Campo(CF_Clasificacion, CF_PartidosGanados) smallint
++Dim RegClasif.CF_PartidosEmpatados As Campo(CF_Clasificacion, CF_PartidosEmpatados) smallint
++Dim RegClasif.CF_PartidosPerdidos As Campo(CF_Clasificacion, CF_PartidosPerdidos) smallint
++Dim RegClasif.CF_GolesFavor As Campo(CF_Clasificacion, CF_GolesFavor) smallint
++Dim RegClasif.CF_GolesContra As Campo(CF_Clasificacion, CF_GolesContra) smallint
++Dim RegClasif.CF_Puntos As Campo(CF_Clasificacion, CF_Puntos) smallint
++Dim RegClasif.CF_Positivos As Campo(CF_Clasificacion, CF_Positivos) smallint
++Dim RegClasif.CF_DiferenciaGoles As Campo(CF_Clasificacion, CF_DiferenciaGoles) smallint
++
++Dim CodigoEmpresa As smallint
++Dim EquipoActual As smallint
++Dim PJ, PG, PE, PP, GF, GC, Puntos, Positivos As smallint
++Dim sql As varchar
++
++'=== Inicio del Proceso ===
+ Inicio:
+-    Ifn CF_Resultados = -1 Then
+-        CF_Resultados = AbreConsulta("CF_Resultados")
+-    Endif
+-    Ifn CF_Clasificacion = -1 Then
+-        CF_Clasificacion = AbreConsulta("CF_Clasificacion")
+-    Endif
+-    Ifn CF_Equipos = -1 Then
+-        CF_Equipos = AbreConsulta("CF_Equipos")
+-    Endif
+-    Ifn CF_ClasificacionOrden = -1 Then
+-        CF_ClasificacionOrden = AbreConsulta("CF_ClasificacionOrden")
+-    Endif
+-    Num = EjecutaBorra("CF_Clasificacion")
+-    Gosub Proceso
+-    Gosub OrdenarClasificacion
+-    Gosub LanzarListado
+-    Gosub Fin
+-
+-Fin:
+-    Ifn CF_ClasificacionOrden <> -1 Then CierraRegistro(CF_ClasificacionOrden) Endif
+-    Ifn CF_Equipos <> -1 Then CierraRegistro(CF_Equipos) Endif
+-    Ifn CF_Clasificacion <> -1 Then CierraRegistro(CF_Clasificacion) Endif
+-    Ifn CF_Resultados <> -1 Then CierraRegistro(CF_Resultados) Endif
+-    MsgBox("Proceso terminado", 32, "Proceso")
+-Return
+-
+-Proceso:
+-    Gosub inicializaClasificacion
+-    Num = Seleccion(CF_Equipos, "1=1")
+-    Num = Primero(CF_Equipos)
+-    Whilen Num = -1 Then
+-        PartidosJugados = 0
+-        PartidosGanados = 0
+-        PartidosEmpatados = 0
+-        PartidosPerdidos = 0
+-        GolesFavor = 0
+-        GolesContra = 0
+-        Puntos = 0
+-        Positivos = 0
+-        DiferenciaGoles = 0
+-
+-        ' --- As LOCAL ---
+-        Num = Seleccion(CF_Resultados, "CF_EquipoLocal = " & CF_Equipos.CF_CodigoEquipo)
+-        Num = Primero(CF_Resultados)
+-        Whilen Num = -1 Then
+-            PartidosJugados = PartidosJugados + 1
+-            GolesFavor = GolesFavor + CF_Resultados.CF_GolesLocal
+-            GolesContra = GolesContra + CF_Resultados.CF_GolesVisitante
+-            Ifn CF_Resultados.CF_GolesLocal > CF_Resultados.CF_GolesVisitante Then
+-                PartidosGanados = PartidosGanados + 1
+-                Puntos = Puntos + 3
+-            Else
+-                Ifn CF_Resultados.CF_GolesLocal < CF_Resultados.CF_GolesVisitante Then
+-                    PartidosPerdidos = PartidosPerdidos + 1
+-                    Positivos = Positivos - 3
+-                Else
+-                    PartidosEmpatados = PartidosEmpatados + 1
+-                    Puntos = Puntos + 1
+-                    Positivos = Positivos - 1
+-                Endif
+-            Endif
+-            Num = Siguiente(CF_Resultados)
+-        Loop
+-
+-        ' --- As VISITOR ---
+-        Num = Seleccion(CF_Resultados, "CF_EquipoVisitante = " & CF_Equipos.CF_CodigoEquipo)
+-        Num = Primero(CF_Resultados)
+-        Whilen Num = -1 Then
+-            PartidosJugados = PartidosJugados + 1
+-            GolesFavor = GolesFavor + CF_Resultados.CF_GolesVisitante
+-            GolesContra = GolesContra + CF_Resultados.CF_GolesLocal
+-            Ifn CF_Resultados.CF_GolesLocal < CF_Resultados.CF_GolesVisitante Then
+-                PartidosGanados = PartidosGanados + 1
+-                Puntos = Puntos + 3
+-                Positivos = Positivos + 3
+-            Else
+-                Ifn CF_Resultados.CF_GolesLocal > CF_Resultados.CF_GolesVisitante Then
+-                    PartidosPerdidos = PartidosPerdidos + 1
+-                Else
+-                    PartidosEmpatados = PartidosEmpatados + 1
+-                    Puntos = Puntos + 1
+-                    Positivos = Positivos + 1
+-                Endif
+-            Endif
+-            Num = Siguiente(CF_Resultados)
+-        Loop
+-
+-        Positivos = Puntos
+-        DiferenciaGoles = GolesFavor - GolesContra
+-
+-        cadUpdate = "UPDATE CF_Clasificacion SET "
+-        cadUpdate = cadUpdate & "CF_PartidosJugados = " & PartidosJugados
+-        cadUpdate = cadUpdate & " , CF_PartidosGanados = " & PartidosGanados
+-        cadUpdate = cadUpdate & " , CF_PartidosEmpatados = " & PartidosEmpatados
+-        cadUpdate = cadUpdate & " , CF_PartidosPerdidos = " & PartidosPerdidos
+-        cadUpdate = cadUpdate & " , CF_GolesFavor = " & GolesFavor
+-        cadUpdate = cadUpdate & " , CF_GolesContra = " & GolesContra
+-        cadUpdate = cadUpdate & " , CF_Puntos = " & Puntos
+-        cadUpdate = cadUpdate & " , CF_Positivos = " & Positivos
+-        cadUpdate = cadUpdate & " , CF_DiferenciaGoles = " & DiferenciaGoles
+-        cadUpdate = cadUpdate & " WHERE CF_Equipo = " & CF_Equipos.CF_CodigoEquipo
+-        Res = EjecutaSQL("exec:=" & cadUpdate)
+-        Num = Siguiente(CF_Equipos)
++    CodigoEmpresa = Apli.ApliCodigoEmpresa
++    
++    'Borrar clasificación anterior
++    sql = "DELETE FROM CF_Clasificacion WHERE CodigoEmpresa = " & CodigoEmpresa
++    EjecutaSQL("exec:=" & sql)
++    
++    'Procesar cada equipo
++    AbreConsulta(RegEquipos, "CF_Equipos", "CodigoEmpresa=" & CodigoEmpresa, "CF_CodigoEquipo")
++    Whilen Primero(RegEquipos) = 0 Then
++        EquipoActual = RegEquipos.CF_CodigoEquipo
++        Gosub CalcularEstadisticasEquipo
++        Gosub InsertarClasificacion
++        Siguiente(RegEquipos)
+     Loop
+-Return
+-
+-InicializaClasificacion:
+-    Res = Seleccion(CF_Clasificacion, "1=2")
+-    Num = Seleccion(CF_Equipos, "1=1")
+-    Num = Primero(CF_Equipos)
+-    Whilen Num = -1 Then
+-        Res = IniciaRegistro(CF_Clasificacion)
+-        CF_Clasificacion.CF_DiferenciaGoles = 0
+-        CF_Clasificacion.CF_Equipo = CF_Equipos.CF_CodigoEquipo
+-        CF_Clasificacion.CF_GolesContra = 0
+-        CF_Clasificacion.CF_GolesFavor = 0
+-        CF_Clasificacion.CF_PartidosEmpatados = 0
+-        CF_Clasificacion.CF_PartidosGanados = 0
+-        CF_Clasificacion.CF_PartidosJugados = 0
+-        CF_Clasificacion.CF_PartidosPerdidos = 0
+-        CF_Clasificacion.CF_Posicion = 0
+-        CF_Clasificacion.CF_Positivos = 0
+-        CF_Clasificacion.CF_Puntos = 0
+-        CF_Clasificacion.CodigoEmpresa = Apli.ApliCodigoEmpresa
+-        Res = Nuevo(CF_Clasificacion)
+-        Num = Siguiente(CF_Equipos)
++    CierraRegistro(RegEquipos)
++    
++    'Actualizar posiciones basadas en criterios de ordenación
++    Gosub ActualizarPosiciones
++    
++    'Ejecutar informe
++    ListadoEjecuta("CF_InformeClasificacion","","","S","","")
++    
++    MsgBox("Cálculo de clasificación completado", 64, "Información")
++    Retorno
++
++'=== Subrutinas ===
++CalcularEstadisticasEquipo:
++    'Inicializar contadores
++    PJ = 0 : PG = 0 : PE = 0 : PP = 0
++    GF = 0 : GC = 0 : Puntos = 0 : Positivos = 0
++    
++    'Calcular como local
++    AbreConsulta(RegResultados, "CF_Resultados", "CodigoEmpresa=" & CodigoEmpresa & " AND CF_EquipoLocal=" & EquipoActual)
++    Whilen Primero(RegResultados) = 0 Then
++        PJ = PJ + 1
++        GF = GF + RegResultados.CF_GolesLocal
++        GC = GC + RegResultados.CF_GolesVisitante
++        
++        Ifn RegResultados.CF_GolesLocal > RegResultados.CF_GolesVisitante Then
++            'Ganado como local
++            PG = PG + 1
++            Puntos = Puntos + 3
++            'Como local: +0 positivos
++        Else Ifn RegResultados.CF_GolesLocal = RegResultados.CF_GolesVisitante Then
++            'Empatado como local
++            PE = PE + 1
++            Puntos = Puntos + 1
++            Positivos = Positivos - 1  'Como local: -1 positivos
++        Else
++            'Perdido como local
++            PP = PP + 1
++            Positivos = Positivos - 3  'Como local: -3 positivos
++        Endif
++        
++        Siguiente(RegResultados)
+     Loop
+-Return
+-
+-OrdenarClasificacion:
+-    RefrescaRegistro(CF_ClasificacionOrden)
+-    Num = Seleccion(CF_ClasificacionOrden, "1=1")
+-    Num = Primero(CF_ClasificacionOrden)
+-    Pos = 0
+-    Whilen Num = -1 Then
+-        Pos = Pos + 1
+-        cadUpdate = "UPDATE CF_Clasificacion SET "
+-        cadUpdate = cadUpdate & "CF_Posicion = " & Pos
+-        cadUpdate = cadUpdate & " WHERE CF_Equipo = " & CF_ClasificacionOrden.CF_Clasificacion.CF_Equipo
+-        Res = EjecutaSQL("exec:=" & cadUpdate)
+-        Num = Siguiente(CF_ClasificacionOrden)
++    CierraRegistro(RegResultados)
++    
++    'Calcular como visitante
++    AbreConsulta(RegResultados, "CF_Resultados", "CodigoEmpresa=" & CodigoEmpresa & " AND CF_EquipoVisitante=" & EquipoActual)
++    Whilen Primero(RegResultados) = 0 Then
++        PJ = PJ + 1
++        GF = GF + RegResultados.CF_GolesVisitante
++        GC = GC + RegResultados.CF_GolesLocal
++        
++        Ifn RegResultados.CF_GolesVisitante > RegResultados.CF_GolesLocal Then
++            'Ganado como visitante
++            PG = PG + 1
++            Puntos = Puntos + 3
++            Positivos = Positivos + 3  'Como visitante: +3 positivos
++        Else Ifn RegResultados.CF_GolesVisitante = RegResultados.CF_GolesLocal Then
++            'Empatado como visitante
++            PE = PE + 1
++            Puntos = Puntos + 1
++            Positivos = Positivos + 1  'Como visitante: +1 positivos
++        Else
++            'Perdido como visitante
++            PP = PP + 1
++            'Como visitante: +0 positivos
++        Endif
++        
++        Siguiente(RegResultados)
+     Loop
+-Return
+-
+-LanzarListado:
+-    Res = ListadoEjecuta("CF_ClasificacionOrden_Lis","","","S","","")
+-Return
+-```
++    CierraRegistro(RegResultados)
++    Retorno
++
++InsertarClasificacion:
++    Nuevo(RegClasif, "CF_Clasificacion")
++    IniciaRegistro(RegClasif)
++    RegClasif.CodigoEmpresa = CodigoEmpresa
++    RegClasif.CF_Posicion = 0  'Se actualizará después
++    RegClasif.CF_Equipo = EquipoActual
++    RegClasif.CF_PartidosJugados = PJ
++    RegClasif.CF_PartidosGanados = PG
++    RegClasif.CF_PartidosEmpatados = PE
++    RegClasif.CF_PartidosPerdidos = PP
++    RegClasif.CF_GolesFavor = GF
++    RegClasif.CF_GolesContra = GC
++    RegClasif.CF_Puntos = Puntos
++    RegClasif.CF_Positivos = Positivos
++    RegClasif.CF_DiferenciaGoles = GF - GC
++    Graba(RegClasif)
++    CierraRegistro(RegClasif)
++    Retorno
++
++ActualizarPosiciones:
++    'Usar query con ROW_NUMBER para ordenar correctamente
++    sql = "UPDATE C SET CF_Posicion = T.NuevaPosicion " &_
++          "FROM CF_Clasificacion C INNER JOIN (" &_
++          "SELECT CF_Equipo, ROW_NUMBER() OVER (" &_
++          "ORDER BY CF_Puntos DESC, CF_Positivos DESC, CF_DiferenciaGoles DESC, " &_
++          "CF_PartidosJugados ASC, (SELECT CF_Nombre FROM CF_Equipos E WHERE E.CodigoEmpresa = C.CodigoEmpresa AND E.CF_CodigoEquipo = C.CF_Equipo) ASC" &_
++          ") as NuevaPosicion " &_
++          "FROM CF_Clasificacion C WHERE CodigoEmpresa = " & CodigoEmpresa &_
++          ") T ON C.CF_Equipo = T.CF_Equipo " &_
++          "WHERE C.CodigoEmpresa = " & CodigoEmpresa
++    EjecutaSQL("exec:=" & sql)
++    Retorno
++```
++
++## Screen Definitions
++
++### CF_Equipos Screen Definition
++```
++Screen: CF_Equipos
++Title: Mantenimiento de Equipos
++Table: CF_Equipos
++Mode: Form/Grid
++
++Controls:
++- lblCF_CodigoEquipo: "Cod. Equipo"
++- txtCF_CodigoEquipo: Input, Required, Integer
++- lblCF_Nombre: "Nombre Equipo"  
++- txtCF_Nombre: Input, Required, MaxLength=30
++- lblCF_JuegaEuropa: "Juega en Europa"
++- txtCF_JuegaEuropa: Checkbox, Default=0, ListOfValues="0;1"
++- lblCF_Competicion: "Competición"
++- txtCF_Competicion: ComboBox, Default=0, Enabled=False
++  ListOfValues="0;2;3" DisplayValues=";Europa League;Champions League"
++
++Grid Layout: lytCF_Equipos
++Columns: CF_CodigoEquipo, CF_Nombre, CF_JuegaEuropa, CF_Competicion
++
++Relations: None required for basic functionality
++```
++
++### CF_Resultados Screen Definition
++```
++Screen: CF_Resultados  
++Title: Mantenimiento de Resultados
++Table: CF_Resultados
++Mode: Form/Grid
++
++Controls:
++- lblCF_Jornada: "Jornada"
++- txtCF_Jornada: Input, Required, Integer, Range=1-38
++- lblCF_EquipoLocal: "Local"
++- txtCF_EquipoLocal: ComboBox, Required, RelCF_EquipoLocal
++- txtNombreLocal: Input, ReadOnly, MaxLength=30
++- lblCF_GolesLocal: "Goles Local"
++- txtCF_GolesLocal: Input, Integer, Default=0
++- lblCF_EquipoVisitante: "Visitante"  
++- txtCF_EquipoVisitante: ComboBox, Required, RelCF_EquipoVisitante
++- txtNombreVisitante: Input, ReadOnly, MaxLength=30
++- lblCF_GolesVisitante: "Goles Visitante"
++- txtCF_GolesVisitante: Input, Integer, Default=0
++- lblCF_Fecha: "Fecha"
++- txtCF_Fecha: DatePicker, Default=Today
++
++Grid Layout: lytCF_Resultados
++Columns: CF_Jornada, CF_EquipoLocal, NombreLocal, CF_GolesLocal, 
++         CF_EquipoVisitante, NombreVisitante, CF_GolesVisitante, CF_Fecha
++
++Relations:
++- RelCF_EquipoLocal: CF_Equipos (CF_CodigoEquipo -> CF_EquipoLocal)
++  Display: CF_CodigoEquipo, CF_Nombre
++- RelCF_EquipoVisitante: CF_Equipos (CF_CodigoEquipo -> CF_EquipoVisitante)  
++  Display: CF_CodigoEquipo, CF_Nombre
++```
++
++### CF_CalculoClasificacion Screen Definition
++```
++Screen: CF_CalculoClasificacion
++Title: Cálculo de Clasificación
++Mode: Process
++
++Controls:
++- lblTitulo: "Cálculo de Clasificación de Liga"
++- btnCalcular: "Calcular Clasificación"
++- btnInforme: "Ver Informe"
++- txtEstado: TextArea, ReadOnly, "Estado del proceso..."
++
++Grid: grdDataForm (CF_Clasificacion results)
++Layout: lytCF_Clasificacion
++Columns: CF_Posicion, CF_Equipo, NombreEquipo, CF_PartidosJugados,
++         CF_PartidosGanados, CF_PartidosEmpatados, CF_PartidosPerdidos,
++         CF_GolesFavor, CF_GolesContra, CF_Puntos, CF_Positivos, CF_DiferenciaGoles
++
++Relations:
++- RelCF_Equipo: CF_Equipos (CF_CodigoEquipo -> CF_Equipo)
++  Display: CF_Nombre
++```
++
++The complete solution includes all tables with proper Sage 200 conventions, business rules implementation, calculation logic for league classification, and screen definitions that support both form and grid modes as specified.

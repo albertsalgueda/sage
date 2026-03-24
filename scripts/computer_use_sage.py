@@ -1,528 +1,606 @@
-#!/usr/bin/env python3
 """
-Experiment 2: Sage 200 Computer-Use Agent
-==========================================
-Uses Anthropic's computer-use API to control a Sage 200 VM via VNC,
-navigating the IDE to create objects (tables, fields, screens, scripts).
+Computer-Use script for controlling Sage 200 — HEADLESS (no RDP client needed).
 
-Prerequisites:
-    - Sage 200 VM running and accessible via VNC
-    - VNC connection details in .env file
-    - ANTHROPIC_API_KEY set
+Uses VNC to connect programmatically to the Windows server, captures screenshots,
+sends keyboard/mouse events, and loops with Anthropic's computer-use API.
+
+Architecture:
+    Python script → VNC protocol → GCP Windows Server → VMware → Sage 200 VM
+
+    The script connects directly to VNC on the server. No Microsoft Remote Desktop,
+    no local GUI, no macOS screencapture — everything is over the network.
+
+Requirements:
+    pip install anthropic vncdotool Pillow
 
 Usage:
-    python scripts/computer_use_sage.py --demo        # Demo mode: navigate to admin console
-    python scripts/computer_use_sage.py --screenshot   # Take a screenshot only
-    python scripts/computer_use_sage.py --task "Create table CF_Equipos"  # Execute a task
+    export ANTHROPIC_API_KEY=your_key
+    python computer_use_sage.py                    # Navigate Sage admin console
+    python computer_use_sage.py --create-table     # Create CF_Equipos table
+    python computer_use_sage.py --custom "Your task description here"
+
+    # Override VM IP:
+    export SAGE_VM_IP=34.175.136.176
 """
 
-import argparse
+import anthropic
 import base64
 import io
+import json
 import os
-import struct
 import sys
-import socket
 import time
-from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
-import anthropic
-from dotenv import load_dotenv
+# ─── Configuration ──────────────────────────────────────────────────────────
 
-# Load .env from repo root
-REPO_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(REPO_ROOT / ".env")
+SAGE_VM_IP = os.environ.get("SAGE_VM_IP", "34.175.136.176")
+VNC_PORT = int(os.environ.get("VNC_PORT", "5900"))
+VNC_PASSWORD = os.environ.get("VNC_PASSWORD", "sage2026")
 
-RESULTS_DIR = REPO_ROOT / "results"
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
 
+RESULTS_DIR = Path(__file__).parent.parent / "results"
+RESULTS_DIR.mkdir(exist_ok=True)
 
-@dataclass
-class VNCConfig:
-    host: str
-    port: int
-    password: str
-    width: int = 1920
-    height: int = 1080
-
-    @classmethod
-    def from_env(cls) -> "VNCConfig":
-        host = os.environ.get("SAGE_VM_HOST", "localhost")
-        port = int(os.environ.get("SAGE_VM_VNC_PORT", "5900"))
-        password = os.environ.get("SAGE_VM_VNC_PASSWORD", "")
-        width = int(os.environ.get("SAGE_VM_SCREEN_WIDTH", "1920"))
-        height = int(os.environ.get("SAGE_VM_SCREEN_HEIGHT", "1080"))
-        return cls(host=host, port=port, password=password, width=width, height=height)
+MODEL = "claude-sonnet-4-6-20250514"
 
 
-class VNCClient:
-    """Minimal VNC client for screenshot + keyboard/mouse input.
+# ─── VNC Connection ─────────────────────────────────────────────────────────
 
-    Implements RFB protocol basics:
-    - Handshake & VNC authentication
-    - Framebuffer update requests (screenshots)
-    - Key events and pointer events (mouse click/move)
-    """
+class VNCController:
+    """Headless VNC controller — captures screenshots and sends input over the network."""
 
-    def __init__(self, config: VNCConfig):
-        self.config = config
-        self.sock = None
-        self.width = config.width
-        self.height = config.height
-        self.connected = False
+    def __init__(self, host: str, port: int = 5900, password: str = ""):
+        self.host = host
+        self.port = port
+        self.password = password
+        self.client = None
 
     def connect(self):
-        """Connect to VNC server and complete handshake."""
-        print(f"Connecting to VNC: {self.config.host}:{self.config.port}...")
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(10)
-        self.sock.connect((self.config.host, self.config.port))
-
-        # RFB protocol version handshake
-        server_version = self.sock.recv(12)
-        print(f"  Server version: {server_version.decode().strip()}")
-        self.sock.send(b"RFB 003.008\n")
-
-        # Security type negotiation
-        num_types = struct.unpack("!B", self.sock.recv(1))[0]
-        if num_types == 0:
-            # Connection failed
-            msg_len = struct.unpack("!I", self.sock.recv(4))[0]
-            msg = self.sock.recv(msg_len).decode()
-            raise ConnectionError(f"VNC connection refused: {msg}")
-
-        sec_types = self.sock.recv(num_types)
-
-        if 1 in sec_types:
-            # No authentication
-            self.sock.send(bytes([1]))
-        elif 2 in sec_types:
-            # VNC authentication
-            self.sock.send(bytes([2]))
-            self._vnc_auth()
-        else:
-            raise ConnectionError(f"No supported security types: {list(sec_types)}")
-
-        # Security result
-        result = struct.unpack("!I", self.sock.recv(4))[0]
-        if result != 0:
-            raise ConnectionError("VNC authentication failed")
-
-        # Client init (shared flag = 1)
-        self.sock.send(bytes([1]))
-
-        # Server init
-        server_init = self.sock.recv(24)
-        self.width = struct.unpack("!H", server_init[0:2])[0]
-        self.height = struct.unpack("!H", server_init[2:4])[0]
-        name_len = struct.unpack("!I", server_init[20:24])[0]
-        if name_len > 0:
-            self.sock.recv(name_len)  # Desktop name
-
-        print(f"  Connected! Desktop: {self.width}x{self.height}")
-        self.connected = True
-
-    def _vnc_auth(self):
-        """Handle VNC DES challenge-response authentication."""
-        challenge = self.sock.recv(16)
-        if not self.config.password:
-            raise ConnectionError("VNC password required but not set in .env")
-
-        # VNC uses a DES key derived from the password (reversed bit order per byte)
-        key = self.config.password.encode("ascii")[:8].ljust(8, b"\x00")
-        # Reverse bits in each byte (VNC quirk)
-        key = bytes(int(f"{b:08b}"[::-1], 2) for b in key)
-
+        """Connect to VNC server."""
         try:
-            from Crypto.Cipher import DES
-            des = DES.new(key, DES.MODE_ECB)
-            response = des.encrypt(challenge[:8]) + des.encrypt(challenge[8:16])
+            from vncdotool import api as vnc_api
+            self.client = vnc_api.connect(
+                f"{self.host}::{self.port}",
+                password=self.password
+            )
+            print(f"✓ Connected to VNC at {self.host}:{self.port}")
+            return True
         except ImportError:
-            # Fallback: try pyDes
-            try:
-                import pyDes
-                des = pyDes.des(key, pyDes.ECB)
-                response = des.encrypt(challenge)
-            except ImportError:
-                raise ImportError(
-                    "VNC authentication requires pycryptodome or pyDes. "
-                    "Install with: pip install pycryptodome"
-                )
+            print("vncdotool not available, falling back to RDP screenshot method")
+            return False
+        except Exception as e:
+            print(f"✗ VNC connection failed: {e}")
+            return False
 
-        self.sock.send(response)
-
-    def screenshot(self) -> bytes:
-        """Request a full framebuffer update and return as PNG bytes."""
-        if not self.connected:
-            raise ConnectionError("Not connected to VNC")
-
-        # Request framebuffer update (incremental=0 for full)
-        msg = struct.pack("!BxHHHH", 3, 0, 0, self.width, self.height)
-        self.sock.send(msg)
-
-        # Read framebuffer update response
-        # This is simplified — a production client would handle all message types
-        header = self.sock.recv(1)
-        msg_type = struct.unpack("!B", header)[0]
-
-        if msg_type != 0:  # Not a framebuffer update
-            print(f"  Unexpected message type: {msg_type}")
-            return b""
-
-        self.sock.recv(1)  # padding
-        num_rects = struct.unpack("!H", self.sock.recv(2))[0]
-
-        # Collect pixel data (simplified for raw encoding)
-        pixels = bytearray(self.width * self.height * 4)
-        for _ in range(num_rects):
-            rect_header = self.sock.recv(12)
-            x, y, w, h, encoding = struct.unpack("!HHHHi", rect_header)
-
-            if encoding == 0:  # Raw
-                data_len = w * h * 4  # Assuming 32-bit color
-                data = b""
-                while len(data) < data_len:
-                    chunk = self.sock.recv(min(data_len - len(data), 65536))
-                    if not chunk:
-                        break
-                    data += chunk
-
-                # Copy to pixel buffer
-                for row in range(h):
-                    src_offset = row * w * 4
-                    dst_offset = ((y + row) * self.width + x) * 4
-                    pixels[dst_offset:dst_offset + w * 4] = data[src_offset:src_offset + w * 4]
-
-        # Convert to PNG using PIL
-        try:
-            from PIL import Image
-            img = Image.frombytes("RGBA", (self.width, self.height), bytes(pixels))
-            img = img.convert("RGB")
+    def screenshot(self, save_path: str = None) -> bytes:
+        """Capture screenshot via VNC, return as PNG bytes."""
+        if self.client:
+            self.client.refreshScreen()
+            img = self.client.screen
             buf = io.BytesIO()
             img.save(buf, format="PNG")
-            return buf.getvalue()
-        except ImportError:
-            print("WARNING: Pillow not installed, returning raw pixel data")
-            return bytes(pixels)
+            png_bytes = buf.getvalue()
+            if save_path:
+                with open(save_path, "wb") as f:
+                    f.write(png_bytes)
+            return png_bytes
+        raise RuntimeError("Not connected to VNC")
 
-    def key_event(self, key: int, down: bool = True):
-        """Send a key press/release event."""
-        msg = struct.pack("!BBxxI", 4, 1 if down else 0, key)
-        self.sock.send(msg)
+    def click(self, x: int, y: int, button: int = 1):
+        """Click at coordinates. button: 1=left, 2=middle, 3=right."""
+        if self.client:
+            self.client.mouseMove(x, y)
+            time.sleep(0.05)
+            self.client.mousePress(button)
+
+    def double_click(self, x: int, y: int):
+        """Double-click at coordinates."""
+        if self.client:
+            self.client.mouseMove(x, y)
+            time.sleep(0.05)
+            self.client.mousePress(1)
+            time.sleep(0.1)
+            self.client.mousePress(1)
+
+    def right_click(self, x: int, y: int):
+        """Right-click at coordinates."""
+        self.click(x, y, button=3)
+
+    def move(self, x: int, y: int):
+        """Move mouse to coordinates."""
+        if self.client:
+            self.client.mouseMove(x, y)
+
+    def drag(self, start_x: int, start_y: int, end_x: int, end_y: int):
+        """Drag from start to end coordinates."""
+        if self.client:
+            self.client.mouseMove(start_x, start_y)
+            time.sleep(0.05)
+            self.client.mouseDown(1)
+            time.sleep(0.1)
+            self.client.mouseMove(end_x, end_y)
+            time.sleep(0.05)
+            self.client.mouseUp(1)
 
     def type_text(self, text: str):
-        """Type a string by sending key press/release for each character."""
-        for char in text:
-            code = ord(char)
-            self.key_event(code, down=True)
-            self.key_event(code, down=False)
-            time.sleep(0.02)
+        """Type text string."""
+        if self.client:
+            self.client.type(text)
 
-    def mouse_move(self, x: int, y: int):
-        """Move mouse to coordinates."""
-        msg = struct.pack("!BBHH", 5, 0, x, y)
-        self.sock.send(msg)
+    def press_key(self, key: str):
+        """Press a key. Maps Anthropic key names to VNC key names."""
+        if not self.client:
+            return
 
-    def mouse_click(self, x: int, y: int, button: int = 1):
-        """Click at coordinates. button: 1=left, 2=middle, 4=right."""
-        self.mouse_move(x, y)
-        time.sleep(0.05)
-        # Press
-        msg = struct.pack("!BBHH", 5, button, x, y)
-        self.sock.send(msg)
-        time.sleep(0.1)
-        # Release
-        msg = struct.pack("!BBHH", 5, 0, x, y)
-        self.sock.send(msg)
+        # Map Anthropic computer-use key names to VNC key names
+        key_map = {
+            "Return": "enter",
+            "Tab": "tab",
+            "Escape": "esc",
+            "BackSpace": "bsp",
+            "Delete": "del",
+            "space": "space",
+            "Up": "up",
+            "Down": "down",
+            "Left": "left",
+            "Right": "right",
+            "Home": "home",
+            "End": "end",
+            "Page_Up": "pgup",
+            "Page_Down": "pgdn",
+            "F1": "f1", "F2": "f2", "F3": "f3", "F4": "f4",
+            "F5": "f5", "F6": "f6", "F7": "f7", "F8": "f8",
+            "F9": "f9", "F10": "f10", "F11": "f11", "F12": "f12",
+            "Control_L": "ctrl", "Alt_L": "alt", "Shift_L": "shift",
+            "Super_L": "super",
+        }
+        mapped = key_map.get(key, key.lower())
+        self.client.keyPress(mapped)
+
+    def scroll(self, x: int, y: int, direction: str, amount: int = 3):
+        """Scroll at coordinates. direction: up/down/left/right."""
+        if self.client:
+            self.client.mouseMove(x, y)
+            # VNC scroll: button 4 = up, button 5 = down
+            button = 4 if direction == "up" else 5
+            for _ in range(amount):
+                self.client.mousePress(button)
+                time.sleep(0.05)
 
     def disconnect(self):
-        """Close VNC connection."""
-        if self.sock:
-            self.sock.close()
-            self.connected = False
-            print("VNC disconnected.")
+        """Disconnect from VNC."""
+        if self.client:
+            self.client.disconnect()
+            print("Disconnected from VNC")
 
 
-class SageComputerUseAgent:
-    """Agent that uses Anthropic's computer-use API to control Sage 200 via VNC."""
+# ─── Fallback: SSH-based screenshot (no VNC needed) ─────────────────────────
 
-    def __init__(self, vnc: VNCClient, model: str = "claude-sonnet-4-20250514"):
-        self.vnc = vnc
-        self.model = model
-        self.client = anthropic.Anthropic()
-        self.messages = []
+class SSHScreenshotController:
+    """
+    Alternative: Use SSH + PowerShell to take screenshots on the server,
+    then download them. No VNC needed, but can't send mouse/keyboard.
+    Useful for verification only.
+    """
 
-    def get_screenshot_b64(self) -> str:
-        """Take a VNC screenshot and return as base64 PNG."""
-        png_data = self.vnc.screenshot()
-        return base64.standard_b64encode(png_data).decode("ascii")
+    def __init__(self, host: str, user: str = "albert", key_path: str = None):
+        self.host = host
+        self.user = user
+        self.key_path = key_path
 
-    def execute_tool(self, tool_name: str, tool_input: dict) -> str:
-        """Execute a computer-use tool action via VNC."""
-        action = tool_input.get("action")
+    def screenshot(self, save_path: str) -> bytes:
+        """Take screenshot via SSH + PowerShell."""
+        import paramiko
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(self.host, username=self.user, key_filename=self.key_path)
 
-        if action == "screenshot":
-            b64 = self.get_screenshot_b64()
-            return f"Screenshot taken ({self.vnc.width}x{self.vnc.height})"
+        ps_cmd = '''
+        Add-Type -AssemblyName System.Windows.Forms
+        $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+        $bitmap = New-Object System.Drawing.Bitmap($screen.Bounds.Width, $screen.Bounds.Height)
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.CopyFromScreen($screen.Bounds.Location, [System.Drawing.Point]::Empty, $screen.Bounds.Size)
+        $bitmap.Save("C:\\screenshot.png")
+        $graphics.Dispose()
+        $bitmap.Dispose()
+        [Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\\screenshot.png"))
+        '''
 
-        elif action == "left_click":
-            x, y = tool_input["coordinate"]
-            self.vnc.mouse_click(int(x), int(y), button=1)
-            time.sleep(0.5)
-            return f"Clicked at ({x}, {y})"
+        stdin, stdout, stderr = ssh.exec_command(f'powershell -Command "{ps_cmd}"')
+        b64_data = stdout.read().decode().strip()
+        ssh.close()
 
-        elif action == "right_click":
-            x, y = tool_input["coordinate"]
-            self.vnc.mouse_click(int(x), int(y), button=4)
-            time.sleep(0.5)
-            return f"Right-clicked at ({x}, {y})"
+        if b64_data:
+            png_bytes = base64.b64decode(b64_data)
+            with open(save_path, "wb") as f:
+                f.write(png_bytes)
+            return png_bytes
+        raise RuntimeError(f"Screenshot failed: {stderr.read().decode()}")
 
-        elif action == "double_click":
-            x, y = tool_input["coordinate"]
-            self.vnc.mouse_click(int(x), int(y))
-            time.sleep(0.1)
-            self.vnc.mouse_click(int(x), int(y))
-            time.sleep(0.5)
-            return f"Double-clicked at ({x}, {y})"
 
-        elif action == "type":
-            text = tool_input["text"]
-            self.vnc.type_text(text)
-            return f"Typed: {text[:50]}..."
+# ─── Fallback: FreeRDP-based controller ──────────────────────────────────────
 
-        elif action == "key":
-            # Map common key names to X11 keysyms
-            key_map = {
-                "Return": 0xFF0D, "Escape": 0xFF1B, "Tab": 0xFF09,
-                "BackSpace": 0xFF08, "Delete": 0xFFFF,
-                "Left": 0xFF51, "Up": 0xFF52, "Right": 0xFF53, "Down": 0xFF54,
-                "Home": 0xFF50, "End": 0xFF57, "Page_Up": 0xFF55, "Page_Down": 0xFF56,
-                "F1": 0xFFBE, "F2": 0xFFBF, "F3": 0xFFC0, "F4": 0xFFC1,
-                "F5": 0xFFC2, "F6": 0xFFC3, "F7": 0xFFC4, "F8": 0xFFC5,
-                "Control_L": 0xFFE3, "Alt_L": 0xFFE9, "Shift_L": 0xFFE1,
-            }
-            key_name = tool_input["key"]
-            keysym = key_map.get(key_name, ord(key_name[0]) if len(key_name) == 1 else 0)
-            self.vnc.key_event(keysym, down=True)
-            self.vnc.key_event(keysym, down=False)
-            return f"Key pressed: {key_name}"
+class FreeRDPController:
+    """
+    Use xfreerdp to maintain a headless RDP session.
+    Captures screenshots via /rfx and sends input via xdotool on an Xvfb display.
+    Requires: xfreerdp, Xvfb, xdotool (Linux only).
+    """
 
-        elif action == "mouse_move":
-            x, y = tool_input["coordinate"]
-            self.vnc.mouse_move(int(x), int(y))
-            return f"Mouse moved to ({x}, {y})"
+    def __init__(self, host: str, user: str, password: str,
+                 width: int = 1920, height: int = 1080):
+        self.host = host
+        self.user = user
+        self.password = password
+        self.width = width
+        self.height = height
+        self.display = ":99"
+        self.process = None
 
-        elif action == "scroll":
-            x, y = tool_input["coordinate"]
-            direction = tool_input.get("direction", "down")
-            amount = tool_input.get("amount", 3)
-            # Scroll via mouse button 4 (up) or 5 (down)
-            button = 8 if direction == "up" else 16
-            for _ in range(amount):
-                msg = struct.pack("!BBHH", 5, button, int(x), int(y))
-                self.vnc.sock.send(msg)
-                time.sleep(0.05)
-                msg = struct.pack("!BBHH", 5, 0, int(x), int(y))
-                self.vnc.sock.send(msg)
-            return f"Scrolled {direction} at ({x}, {y})"
+    def connect(self):
+        """Start Xvfb + xfreerdp in background."""
+        import subprocess
 
-        else:
-            return f"Unknown action: {action}"
+        # Start virtual display
+        subprocess.Popen([
+            "Xvfb", self.display, "-screen", "0",
+            f"{self.width}x{self.height}x24"
+        ])
+        time.sleep(1)
 
-    def run_task(self, task: str, max_steps: int = 30) -> list[dict]:
-        """Run a computer-use task loop with Claude."""
-        system_prompt = """You are controlling a Sage 200 application running on a Windows VM via VNC.
-Your goal is to navigate the Sage 200 IDE to complete the requested task.
+        # Start xfreerdp
+        self.process = subprocess.Popen([
+            "xfreerdp",
+            f"/v:{self.host}",
+            f"/u:{self.user}",
+            f"/p:{self.password}",
+            f"/size:{self.width}x{self.height}",
+            "/cert:ignore",
+            "+clipboard",
+        ], env={**os.environ, "DISPLAY": self.display})
+        time.sleep(3)
+        print(f"✓ FreeRDP connected to {self.host}")
 
-Key navigation hints for Sage 200:
-- The main window has a menu bar at the top
-- "Consola de Administracion" is the admin console
-- "Herramientas" menu contains "Importar Objetos de Repositorio" and other dev tools
-- To create tables/fields: use the admin console developer tools
-- The IDE has a tree view on the left for navigating objects
+    def screenshot(self, save_path: str) -> bytes:
+        """Capture screenshot via xdotool/import."""
+        import subprocess
+        subprocess.run([
+            "import", "-window", "root", "-display", self.display, save_path
+        ], check=True)
+        with open(save_path, "rb") as f:
+            return f.read()
 
-Always start by taking a screenshot to see the current state."""
+    def click(self, x: int, y: int, button: int = 1):
+        import subprocess
+        subprocess.run([
+            "xdotool", "mousemove", "--screen", "0", str(x), str(y),
+            "click", str(button)
+        ], env={**os.environ, "DISPLAY": self.display})
 
-        self.messages = [{"role": "user", "content": task}]
-        actions_log = []
+    def type_text(self, text: str):
+        import subprocess
+        subprocess.run([
+            "xdotool", "type", "--delay", "50", text
+        ], env={**os.environ, "DISPLAY": self.display})
 
-        for step in range(max_steps):
-            print(f"\n--- Step {step + 1}/{max_steps} ---")
+    def press_key(self, key: str):
+        import subprocess
+        key_map = {
+            "Return": "Return", "Tab": "Tab", "Escape": "Escape",
+            "BackSpace": "BackSpace", "space": "space",
+            "Up": "Up", "Down": "Down", "Left": "Left", "Right": "Right",
+        }
+        mapped = key_map.get(key, key)
+        subprocess.run([
+            "xdotool", "key", mapped
+        ], env={**os.environ, "DISPLAY": self.display})
 
-            # Get screenshot for context
-            screenshot_b64 = self.get_screenshot_b64()
 
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=4096,
-                system=system_prompt,
-                messages=self.messages,
-                tools=[{
-                    "type": "computer_20251124",
-                    "name": "computer",
-                    "display_width_px": self.vnc.width,
-                    "display_height_px": self.vnc.height,
-                    "display_number": 1,
-                }],
-                betas=["computer-use-2025-01-24"],
-            )
+# ─── Computer-Use Loop ──────────────────────────────────────────────────────
 
-            # Process response
-            assistant_content = response.content
-            self.messages.append({"role": "assistant", "content": assistant_content})
+def execute_action(controller, action: dict):
+    """Execute a computer-use action using the active controller."""
+    action_type = action.get("action", action.get("type", "unknown"))
 
-            if response.stop_reason == "end_turn":
-                # Model is done
-                for block in assistant_content:
-                    if hasattr(block, "text"):
-                        print(f"  Agent: {block.text}")
-                        actions_log.append({"step": step, "type": "message", "text": block.text})
-                break
+    if action_type == "screenshot":
+        return  # Handled by the loop
 
-            # Process tool uses
-            tool_results = []
-            for block in assistant_content:
-                if block.type == "tool_use":
-                    print(f"  Tool: {block.name} -> {block.input.get('action', 'unknown')}")
-                    result_text = self.execute_tool(block.name, block.input)
-                    print(f"  Result: {result_text}")
+    elif action_type == "left_click":
+        x, y = action["coordinate"]
+        controller.click(x, y, button=1)
 
-                    actions_log.append({
-                        "step": step,
-                        "type": "tool_use",
-                        "action": block.input.get("action"),
-                        "input": block.input,
-                        "result": result_text,
-                    })
+    elif action_type == "right_click":
+        x, y = action["coordinate"]
+        controller.right_click(x, y)
 
-                    # Build tool result with screenshot
-                    tool_result_content = [{"type": "text", "text": result_text}]
+    elif action_type == "double_click":
+        x, y = action["coordinate"]
+        controller.double_click(x, y)
 
-                    # Always include a fresh screenshot after actions
-                    if block.input.get("action") != "screenshot":
-                        time.sleep(0.5)  # Wait for UI to update
-                    new_screenshot = self.get_screenshot_b64()
-                    tool_result_content.append({
+    elif action_type == "mouse_move":
+        x, y = action["coordinate"]
+        controller.move(x, y)
+
+    elif action_type == "left_click_drag":
+        sx, sy = action["start_coordinate"]
+        ex, ey = action["coordinate"]
+        controller.drag(sx, sy, ex, ey)
+
+    elif action_type == "type":
+        controller.type_text(action["text"])
+
+    elif action_type == "key":
+        controller.press_key(action["key"])
+
+    elif action_type == "scroll":
+        x, y = action["coordinate"]
+        direction = action.get("scroll_direction", "down")
+        amount = action.get("scroll_amount", 3)
+        controller.scroll(x, y, direction, amount)
+
+    else:
+        print(f"  ⚠ Unknown action: {action_type}")
+
+
+def run_computer_use_loop(controller, task: str, max_steps: int = 50):
+    """
+    The main computer-use loop:
+      1. Take screenshot via VNC/RDP
+      2. Send to Claude with computer-use tool
+      3. Claude returns action (click, type, etc.)
+      4. Execute action via VNC/RDP
+      5. Repeat until Claude says done or max_steps reached
+
+    Everything is headless — no local GUI needed.
+    """
+    client = anthropic.Anthropic()
+    log_entries = []
+    step = 0
+
+    print(f"\n{'='*60}")
+    print(f"  Computer-Use Task")
+    print(f"{'='*60}")
+    print(f"  {task[:200]}...")
+    print(f"{'='*60}\n")
+
+    messages = [
+        {
+            "role": "user",
+            "content": [{"type": "text", "text": task}]
+        }
+    ]
+
+    last_tool_use_id = None
+
+    while step < max_steps:
+        step += 1
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        screenshot_path = str(RESULTS_DIR / f"step_{step:03d}_{timestamp}.png")
+
+        # 1. Take screenshot
+        print(f"\n--- Step {step}/{max_steps} ---")
+        print("📸 Taking screenshot...")
+        try:
+            png_bytes = controller.screenshot(screenshot_path)
+            screenshot_b64 = base64.standard_b64encode(png_bytes).decode("utf-8")
+            print(f"   Saved: {screenshot_path}")
+        except Exception as e:
+            print(f"   ✗ Screenshot failed: {e}")
+            break
+
+        # 2. Build message with screenshot
+        if step > 1 and last_tool_use_id:
+            messages.append({
+                "role": "user",
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": last_tool_use_id,
+                    "content": [{
                         "type": "image",
                         "source": {
                             "type": "base64",
                             "media_type": "image/png",
-                            "data": new_screenshot,
-                        },
-                    })
+                            "data": screenshot_b64
+                        }
+                    }]
+                }]
+            })
+        else:
+            messages[0]["content"].append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": screenshot_b64
+                }
+            })
 
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": tool_result_content,
-                    })
+        # 3. Ask Claude
+        print("🤖 Asking Claude to analyze...")
+        try:
+            response = client.messages.create(
+                model=MODEL,
+                max_tokens=4096,
+                tools=[{
+                    "type": "computer_20251124",
+                    "name": "computer",
+                    "display_width_px": SCREEN_WIDTH,
+                    "display_height_px": SCREEN_HEIGHT,
+                    "display_number": 0,
+                }],
+                messages=messages,
+                betas=["computer-use-2025-01-24"],
+            )
+        except Exception as e:
+            print(f"   ✗ API error: {e}")
+            log_entries.append({
+                "step": step, "timestamp": timestamp,
+                "action": "api_error", "error": str(e),
+                "screenshot": screenshot_path,
+            })
+            break
 
-                elif hasattr(block, "text"):
-                    print(f"  Agent: {block.text}")
+        # 4. Process response
+        assistant_content = response.content
+        messages.append({"role": "assistant", "content": assistant_content})
 
-            if tool_results:
-                self.messages.append({"role": "user", "content": tool_results})
+        # Check if Claude is done
+        if response.stop_reason == "end_turn":
+            for block in assistant_content:
+                if hasattr(block, "text"):
+                    print(f"\n💬 Claude: {block.text}")
+            print("\n✓ Task completed.")
+            log_entries.append({
+                "step": step, "timestamp": timestamp,
+                "action": "end_turn", "screenshot": screenshot_path,
+            })
+            break
 
-        return actions_log
+        # 5. Execute tool-use actions
+        for block in assistant_content:
+            if hasattr(block, "text") and block.text:
+                print(f"   💬 {block.text}")
 
+            if block.type == "tool_use":
+                last_tool_use_id = block.id
+                action = block.input
+                action_type = action.get("action", action.get("type", "?"))
 
-def demo_mode(vnc: VNCClient, model: str):
-    """Demo: Navigate to Consola de Administracion > Herramientas."""
-    agent = SageComputerUseAgent(vnc, model)
+                # Log
+                coord = action.get("coordinate", "")
+                text = action.get("text", "")[:40]
+                print(f"   🎯 {action_type}", end="")
+                if coord: print(f" @ {coord}", end="")
+                if text: print(f" '{text}'", end="")
+                print()
 
-    task = """Take a screenshot first to see the current state of the Sage 200 application.
-Then navigate to:
-1. Open the "Consola de Administracion" (Admin Console)
-2. Go to "Herramientas" (Tools) menu
-3. Take a final screenshot showing the available tools
+                log_entries.append({
+                    "step": step, "timestamp": timestamp,
+                    "action": action_type,
+                    "details": {k: v for k, v in action.items()
+                               if k not in ("type", "action")},
+                    "screenshot": screenshot_path,
+                })
 
-Report what you see at each step."""
-
-    print("=" * 50)
-    print("  DEMO MODE: Navigate to Admin Console > Tools")
-    print("=" * 50)
-
-    actions = agent.run_task(task, max_steps=15)
+                # Execute
+                if action_type != "screenshot":
+                    try:
+                        execute_action(controller, action)
+                        time.sleep(0.5)  # Wait for UI to update
+                    except Exception as e:
+                        print(f"   ✗ Action failed: {e}")
 
     # Save log
-    RESULTS_DIR.mkdir(exist_ok=True)
-    import json
-    from datetime import datetime
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = RESULTS_DIR / f"computer_use_demo_{ts}.json"
-    log_path.write_text(json.dumps(actions, indent=2, default=str), encoding="utf-8")
-    print(f"\nActions log saved: {log_path.name}")
+    log_path = RESULTS_DIR / f"computer_use_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    with open(log_path, "w") as f:
+        json.dump({
+            "task": task,
+            "vm_ip": SAGE_VM_IP,
+            "model": MODEL,
+            "steps": log_entries,
+            "total_steps": step,
+            "completed": response.stop_reason == "end_turn" if 'response' in dir() else False,
+        }, f, indent=2)
+
+    print(f"\n📋 Log saved: {log_path}")
+    return log_entries
 
 
-def screenshot_mode(vnc: VNCClient):
-    """Just take a screenshot and save it."""
-    RESULTS_DIR.mkdir(exist_ok=True)
-    png_data = vnc.screenshot()
+# ─── Test Tasks ──────────────────────────────────────────────────────────────
 
-    from datetime import datetime
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = RESULTS_DIR / f"screenshot_{ts}.png"
-    path.write_bytes(png_data)
-    print(f"Screenshot saved: {path} ({len(png_data)} bytes)")
+TASK_NAVIGATE_ADMIN = """
+You are controlling a Windows desktop that has Sage 200 installed.
+The interface is in Spanish.
 
+Your task:
+1. Look at the current screen. Describe what you see.
+2. Find and open the Sage 200 application (check desktop icons, taskbar, or Start menu)
+3. Navigate to: Consola de Administración → Herramientas → Importar Objetos de Repositorio
+4. Once you reach the import screen, describe what you see.
+
+Take your time. At each step, describe what you see before taking action.
+If you're unsure, take a screenshot first.
+"""
+
+TASK_CREATE_TABLE = """
+You are controlling a Windows desktop with Sage 200's development environment.
+The interface is in Spanish.
+
+Your task is to create a new table in Sage 200:
+
+Table: CF_Equipos
+Fields:
+  - CodigoEquipo (Character, 5 chars, Primary Key)
+  - Nombre (Character, 50 chars)
+  - JuegaEuropa (Boolean / Lógico)
+  - Competicion (Character, 30 chars)
+
+Steps:
+1. Open Sage 200 if not already open
+2. Go to the development/customization area (Consola de Administración)
+3. Find where to create/modify tables (Herramientas → Tablas or similar)
+4. Create the table CF_Equipos with all fields above
+5. Save and confirm the table was created
+
+Describe what you see and do at each step. The interface is in Spanish.
+"""
+
+
+# ─── Main ────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Sage 200 Computer-Use Agent")
-    parser.add_argument("--demo", action="store_true",
-                        help="Demo mode: navigate to Admin Console > Tools")
-    parser.add_argument("--screenshot", action="store_true",
-                        help="Take a screenshot only")
-    parser.add_argument("--task", type=str,
-                        help="Custom task to execute")
-    parser.add_argument("--model", default="claude-sonnet-4-20250514",
-                        help="Anthropic model (default: claude-sonnet-4-20250514)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Show config without connecting")
-    args = parser.parse_args()
-
-    # Load config
-    config = VNCConfig.from_env()
-
-    if args.dry_run:
-        print("VNC Configuration:")
-        print(f"  Host: {config.host}")
-        print(f"  Port: {config.port}")
-        print(f"  Password: {'***' if config.password else '(none)'}")
-        print(f"  Screen: {config.width}x{config.height}")
-        print(f"  Model: {args.model}")
-        print("\nReady to connect when VM is available.")
-        return
-
+    # Check API key
     if not os.environ.get("ANTHROPIC_API_KEY"):
-        print("ERROR: ANTHROPIC_API_KEY not set")
+        print("ERROR: Set ANTHROPIC_API_KEY environment variable")
+        print("  export ANTHROPIC_API_KEY=sk-ant-...")
         sys.exit(1)
 
-    # Connect to VNC
-    vnc = VNCClient(config)
+    # Parse task
+    task = TASK_NAVIGATE_ADMIN
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "--create-table":
+            task = TASK_CREATE_TABLE
+        elif sys.argv[1] == "--custom":
+            task = " ".join(sys.argv[2:])
+        elif sys.argv[1] == "--help":
+            print("Usage: python computer_use_sage.py [OPTIONS]")
+            print()
+            print("Options:")
+            print("  (none)            Navigate to Sage admin console")
+            print("  --create-table    Create CF_Equipos table")
+            print("  --custom TEXT     Run custom task")
+            print()
+            print("Environment:")
+            print(f"  SAGE_VM_IP     = {SAGE_VM_IP}")
+            print(f"  VNC_PORT       = {VNC_PORT}")
+            print(f"  VNC_PASSWORD   = {'*' * len(VNC_PASSWORD)}")
+            print(f"  ANTHROPIC_API_KEY = {'set' if os.environ.get('ANTHROPIC_API_KEY') else 'NOT SET'}")
+            sys.exit(0)
+
+    # Try VNC first, then FreeRDP, then SSH-only
+    print(f"\nConnecting to {SAGE_VM_IP}...")
+    controller = VNCController(SAGE_VM_IP, VNC_PORT, VNC_PASSWORD)
+
+    if not controller.connect():
+        print("\n⚠ VNC not available.")
+        print("  Options:")
+        print("  1. Install TightVNC on the server (port 5900)")
+        print("  2. Use FreeRDP on Linux: pip install ... (see FreeRDPController)")
+        print("  3. SSH screenshot-only mode (can view but not interact)")
+        print()
+        print("  To install VNC on the server, SSH in and run:")
+        print("  choco install tightvnc -y --params '/SET_PASSWORD=sage2026'")
+        sys.exit(1)
+
     try:
-        vnc.connect()
-
-        if args.screenshot:
-            screenshot_mode(vnc)
-        elif args.demo:
-            demo_mode(vnc, args.model)
-        elif args.task:
-            agent = SageComputerUseAgent(vnc, args.model)
-            actions = agent.run_task(args.task)
-            print(f"\nCompleted {len(actions)} actions.")
-        else:
-            print("No action specified. Use --demo, --screenshot, or --task")
-            parser.print_help()
-
-    except ConnectionRefusedError:
-        print(f"ERROR: Cannot connect to VNC at {config.host}:{config.port}")
-        print("Make sure the Sage VM is running and VNC is enabled.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: {e}")
-        sys.exit(1)
+        run_computer_use_loop(controller, task)
     finally:
-        vnc.disconnect()
+        controller.disconnect()
 
 
 if __name__ == "__main__":

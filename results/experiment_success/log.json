@@ -1,0 +1,45 @@
+{
+  "task": "\nYou are controlling a Windows Server 2019 desktop via remote display.\nThe display is 1024x768. The interface is in Spanish.\n\nYour task:\n1. Look at the current screen and describe what you see.\n2. Close the Server Manager window (click X button at top-right, or use Alt+F4)\n3. Find and open the Sage 200 application - look for \"Sage 200c\" icon on the desktop\n4. Double-click the Sage 200c icon to open it\n5. Once Sage 200 opens, describe what you see\n\nImportant tips:\n- The Server Manager close button (X) is at approximately the top-right corner of its window\n- Desktop icons are on the left side\n- The taskbar is at the bottom\n- After clicking, wait for the UI to respond before taking the next action\n- If an action doesn't seem to work, try a slightly different position\n",
+  "model": "claude-haiku-4-5-20251001",
+  "steps": [
+    {
+      "step": 1,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          879,
+          144
+        ]
+      }
+    },
+    {
+      "step": 2,
+      "action": "double_click",
+      "details": {
+        "action": "double_click",
+        "coordinate": [
+          46,
+          155
+        ]
+      }
+    },
+    {
+      "step": 3,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 3
+      }
+    },
+    {
+      "step": 4,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 3
+      }
+    }
+  ],
+  "total": 5
+}

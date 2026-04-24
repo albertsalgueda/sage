@@ -1,0 +1,185 @@
+--- solution (SQL)
++++ generated (SQL)
+@@ -1,42 +1,150 @@
+-CREATE TABLE dbo.[CF_Clasificacion] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Posicion] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Equipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosJugados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosGanados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosEmpatados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosPerdidos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesFavor] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesContra] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Puntos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Positivos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_DiferenciaGoles] smallint NOT NULL DEFAULT ((0))
++-- Equipos table
++CREATE TABLE [dbo].[CF_Equipos](
++    [CodigoEmpresa] [smallint] NOT NULL,
++    [CF_CodigoEquipo] [int] NOT NULL,
++    [CF_Nombre] [varchar](30) NOT NULL,
++    [CF_JuegaEuropa] [smallint] NOT NULL,
++    [CF_Competicion] [smallint] NOT NULL,
++    [IdCF_Equipo] [uniqueidentifier] NOT NULL
+ )
+ 
+-CREATE TABLE dbo.[CF_Equipos] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_CodigoEquipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Nombre] varchar(30) NOT NULL DEFAULT (''),
+-  [CF_JuegaEuropa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Competicion] smallint NOT NULL DEFAULT ((1))
++ALTER TABLE [dbo].[CF_Equipos] ADD DEFAULT ((0)) FOR [CodigoEmpresa]
++ALTER TABLE [dbo].[CF_Equipos] ADD DEFAULT ((0)) FOR [CF_CodigoEquipo]
++ALTER TABLE [dbo].[CF_Equipos] ADD DEFAULT ('') FOR [CF_Nombre]
++ALTER TABLE [dbo].[CF_Equipos] ADD DEFAULT ((0)) FOR [CF_JuegaEuropa]
++ALTER TABLE [dbo].[CF_Equipos] ADD DEFAULT ((1)) FOR [CF_Competicion]
++ALTER TABLE [dbo].[CF_Equipos] ADD DEFAULT (newid()) FOR [IdCF_Equipo]
++
++-- Resultados table
++CREATE TABLE [dbo].[CF_Resultados](
++    [CodigoEmpresa] [smallint] NOT NULL,
++    [CF_Jornada] [int] NOT NULL,
++    [CF_EquipoLocal] [int] NOT NULL,
++    [CF_GolesLocal] [int] NOT NULL,
++    [CF_EquipoVisitante] [int] NOT NULL,
++    [CF_GolesVisitante] [int] NOT NULL,
++    [CF_Fecha] [datetime] NOT NULL,
++    [IdCF_Resultado] [uniqueidentifier] NOT NULL
+ )
+ 
+-CREATE TABLE dbo.[CF_Resultados] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Jornada] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Fecha] datetime NOT NULL DEFAULT (getdate())
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT ((0)) FOR [CodigoEmpresa]
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT ((0)) FOR [CF_Jornada]
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT ((0)) FOR [CF_EquipoLocal]
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT ((0)) FOR [CF_GolesLocal]
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT ((0)) FOR [CF_EquipoVisitante]
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT ((0)) FOR [CF_GolesVisitante]
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT (getdate()) FOR [CF_Fecha]
++ALTER TABLE [dbo].[CF_Resultados] ADD DEFAULT (newid()) FOR [IdCF_Resultado]
++
++-- Clasificacion table
++CREATE TABLE [dbo].[CF_Clasificacion](
++    [CodigoEmpresa] [smallint] NOT NULL,
++    [CF_Posicion] [int] NOT NULL,
++    [CF_Equipo] [int] NOT NULL,
++    [CF_PartidosJugados] [int] NOT NULL,
++    [CF_PartidosGanados] [int] NOT NULL,
++    [CF_PartidosEmpatados] [int] NOT NULL,
++    [CF_PartidosPerdidos] [int] NOT NULL,
++    [CF_GolesFavor] [int] NOT NULL,
++    [CF_GolesContra] [int] NOT NULL,
++    [CF_Puntos] [int] NOT NULL,
++    [CF_Positivos] [int] NOT NULL,
++    [CF_DiferenciaGoles] [int] NOT NULL,
++    [IdCF_Clasificacion] [uniqueidentifier] NOT NULL
+ )
+ 
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CodigoEmpresa]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_Posicion]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_Equipo]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_PartidosJugados]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_PartidosGanados]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_PartidosEmpatados]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_PartidosPerdidos]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_GolesFavor]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_GolesContra]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_Puntos]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_Positivos]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT ((0)) FOR [CF_DiferenciaGoles]
++ALTER TABLE [dbo].[CF_Clasificacion] ADD DEFAULT (newid()) FOR [IdCF_Clasificacion]
++
++
++ALTER TABLE [CF_Equipos] WITH NOCHECK ADD CONSTRAINT [CF_Equipos_Principal]
++  PRIMARY KEY CLUSTERED ([CodigoEmpresa] ASC, [CF_CodigoEquipo] ASC) ON [PRIMARY]
++
++ALTER TABLE [CF_Resultados] WITH NOCHECK ADD CONSTRAINT [CF_Resultados_Principal]
++  PRIMARY KEY CLUSTERED ([CodigoEmpresa] ASC, [CF_Jornada] ASC, [CF_EquipoLocal] ASC, [CF_EquipoVisitante] ASC) ON [PRIMARY]
+ 
+ ALTER TABLE [CF_Clasificacion] WITH NOCHECK ADD CONSTRAINT [CF_Clasificacion_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Posicion],[CF_Equipo]) ON [PRIMARY]
++  PRIMARY KEY CLUSTERED ([CodigoEmpresa] ASC, [CF_Posicion] ASC) ON [PRIMARY]
+ 
+-ALTER TABLE [CF_Equipos] WITH NOCHECK ADD CONSTRAINT [CF_Equipos_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_CodigoEquipo]) ON [PRIMARY]
+ 
+-ALTER TABLE [CF_Resultados] WITH NOCHECK ADD CONSTRAINT [CF_Resultados_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Jornada],[CF_EquipoLocal],[CF_EquipoVisitante]) ON [PRIMARY]
++-- Query: CF_Equipos
++SELECT 
++    CodigoEmpresa,
++    CF_CodigoEquipo,
++    CF_Nombre,
++    CF_JuegaEuropa,
++    CF_Competicion,
++    IdCF_Equipo
++FROM CF_Equipos
++WHERE CodigoEmpresa = @@CodigoEmpresa@@
++ORDER BY CF_CodigoEquipo
++
++-- Query: CF_EquiposL (for lookups)
++SELECT 
++    CF_CodigoEquipo,
++    CF_Nombre
++FROM CF_Equipos
++WHERE CodigoEmpresa = @@CodigoEmpresa@@
++ORDER BY CF_Nombre
++
++-- Query: CF_Resultados
++SELECT 
++    R.CodigoEmpresa,
++    R.CF_Jornada,
++    R.CF_EquipoLocal,
++    EL.CF_Nombre AS NombreLocal,
++    R.CF_GolesLocal,
++    R.CF_EquipoVisitante,
++    EV.CF_Nombre AS NombreVisitante,
++    R.CF_GolesVisitante,
++    R.CF_Fecha,
++    R.IdCF_Resultado
++FROM CF_Resultados R
++LEFT JOIN CF_Equipos EL ON R.CodigoEmpresa = EL.CodigoEmpresa AND R.CF_EquipoLocal = EL.CF_CodigoEquipo
++LEFT JOIN CF_Equipos EV ON R.CodigoEmpresa = EV.CodigoEmpresa AND R.CF_EquipoVisitante = EV.CF_CodigoEquipo
++WHERE R.CodigoEmpresa = @@CodigoEmpresa@@
++ORDER BY R.CF_Jornada, R.CF_EquipoLocal
++
++-- Query: CF_Clasificacion
++SELECT 
++    C.CodigoEmpresa,
++    C.CF_Posicion,
++    C.CF_Equipo,
++    E.CF_Nombre,
++    C.CF_PartidosJugados,
++    C.CF_PartidosGanados,
++    C.CF_PartidosEmpatados,
++    C.CF_PartidosPerdidos,
++    C.CF_GolesFavor,
++    C.CF_GolesContra,
++    C.CF_Puntos,
++    C.CF_Positivos,
++    C.CF_DiferenciaGoles,
++    C.IdCF_Clasificacion
++FROM CF_Clasificacion C
++LEFT JOIN CF_Equipos E ON C.CodigoEmpresa = E.CodigoEmpresa AND C.CF_Equipo = E.CF_CodigoEquipo
++WHERE C.CodigoEmpresa = @@CodigoEmpresa@@
++ORDER BY C.CF_Posicion
++
++-- Query: CF_ResultadosCalculo (for classification calculation)
++SELECT 
++    R.CodigoEmpresa,
++    R.CF_Jornada,
++    R.CF_EquipoLocal,
++    R.CF_GolesLocal,
++    R.CF_EquipoVisitante,
++    R.CF_GolesVisitante
++FROM CF_Resultados R
++WHERE R.CodigoEmpresa = @@CodigoEmpresa@@
++ORDER BY R.CF_Jornada

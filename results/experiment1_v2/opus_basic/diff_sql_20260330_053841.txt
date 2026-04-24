@@ -1,0 +1,181 @@
+--- solution (SQL)
++++ generated (SQL)
+@@ -1,42 +1,142 @@
+-CREATE TABLE dbo.[CF_Clasificacion] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Posicion] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Equipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosJugados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosGanados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosEmpatados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosPerdidos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesFavor] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesContra] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Puntos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Positivos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_DiferenciaGoles] smallint NOT NULL DEFAULT ((0))
+-)
++-- Table for Teams (Equipos)
++CREATE TABLE [dbo].[CF_Equipos](
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_CodigoEquipo] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Nombre] [varchar](30) NOT NULL DEFAULT (''),
++    [CF_JuegaEuropa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Competicion] [smallint] NOT NULL DEFAULT ((0))
++) ON [PRIMARY]
+ 
+-CREATE TABLE dbo.[CF_Equipos] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_CodigoEquipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Nombre] varchar(30) NOT NULL DEFAULT (''),
+-  [CF_JuegaEuropa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Competicion] smallint NOT NULL DEFAULT ((1))
+-)
++-- Table for Results (Resultados)
++CREATE TABLE [dbo].[CF_Resultados](
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Jornada] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_EquipoLocal] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesLocal] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_EquipoVisitante] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesVisitante] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Fecha] [datetime] NOT NULL DEFAULT (getdate())
++) ON [PRIMARY]
+ 
+-CREATE TABLE dbo.[CF_Resultados] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Jornada] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Fecha] datetime NOT NULL DEFAULT (getdate())
+-)
++-- Table for Classification (Clasificacion)
++CREATE TABLE [dbo].[CF_Clasificacion](
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Posicion] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Equipo] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosJugados] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosGanados] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosEmpatados] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_PartidosPerdidos] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesFavor] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_GolesContra] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Puntos] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Positivos] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_DiferenciaGoles] [smallint] NOT NULL DEFAULT ((0))
++) ON [PRIMARY]
+ 
+ 
+-ALTER TABLE [CF_Clasificacion] WITH NOCHECK ADD CONSTRAINT [CF_Clasificacion_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Posicion],[CF_Equipo]) ON [PRIMARY]
++-- Primary key for Teams
++ALTER TABLE [dbo].[CF_Equipos] WITH NOCHECK ADD 
++    CONSTRAINT [CF_Equipos_Principal] PRIMARY KEY CLUSTERED 
++    ([CodigoEmpresa], [CF_CodigoEquipo]) ON [PRIMARY]
+ 
+-ALTER TABLE [CF_Equipos] WITH NOCHECK ADD CONSTRAINT [CF_Equipos_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_CodigoEquipo]) ON [PRIMARY]
++-- Primary key for Results
++ALTER TABLE [dbo].[CF_Resultados] WITH NOCHECK ADD 
++    CONSTRAINT [CF_Resultados_Principal] PRIMARY KEY CLUSTERED 
++    ([CodigoEmpresa], [CF_Jornada], [CF_EquipoLocal], [CF_EquipoVisitante]) ON [PRIMARY]
+ 
+-ALTER TABLE [CF_Resultados] WITH NOCHECK ADD CONSTRAINT [CF_Resultados_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Jornada],[CF_EquipoLocal],[CF_EquipoVisitante]) ON [PRIMARY]
++-- Primary key for Classification
++ALTER TABLE [dbo].[CF_Clasificacion] WITH NOCHECK ADD 
++    CONSTRAINT [CF_Clasificacion_Principal] PRIMARY KEY CLUSTERED 
++    ([CodigoEmpresa], [CF_Posicion], [CF_Equipo]) ON [PRIMARY]
++
++
++-- Query for team lookups (used in Results screen)
++SELECT CF_CodigoEquipo, CF_Nombre 
++FROM CF_Equipos 
++WHERE CodigoEmpresa = {CodigoEmpresa}
++ORDER BY CF_Nombre
++
++-- Query for ranking calculation with all tie-breaking criteria
++WITH TeamStats AS (
++    SELECT 
++        e.CodigoEmpresa,
++        e.CF_CodigoEquipo as Equipo,
++        e.CF_Nombre,
++        -- Partidos Jugados
++        COUNT(DISTINCT CASE 
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo OR r.CF_EquipoVisitante = e.CF_CodigoEquipo 
++            THEN CONCAT(r.CF_Jornada, '-', r.CF_EquipoLocal, '-', r.CF_EquipoVisitante) 
++        END) as PJ,
++        -- Partidos Ganados
++        SUM(CASE 
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo AND r.CF_GolesLocal > r.CF_GolesVisitante THEN 1
++            WHEN r.CF_EquipoVisitante = e.CF_CodigoEquipo AND r.CF_GolesVisitante > r.CF_GolesLocal THEN 1
++            ELSE 0
++        END) as PG,
++        -- Partidos Empatados
++        SUM(CASE 
++            WHEN (r.CF_EquipoLocal = e.CF_CodigoEquipo OR r.CF_EquipoVisitante = e.CF_CodigoEquipo) 
++                AND r.CF_GolesLocal = r.CF_GolesVisitante THEN 1
++            ELSE 0
++        END) as PE,
++        -- Partidos Perdidos
++        SUM(CASE 
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo AND r.CF_GolesLocal < r.CF_GolesVisitante THEN 1
++            WHEN r.CF_EquipoVisitante = e.CF_CodigoEquipo AND r.CF_GolesVisitante < r.CF_GolesLocal THEN 1
++            ELSE 0
++        END) as PP,
++        -- Goles a Favor
++        SUM(CASE 
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo THEN r.CF_GolesLocal
++            WHEN r.CF_EquipoVisitante = e.CF_CodigoEquipo THEN r.CF_GolesVisitante
++            ELSE 0
++        END) as GF,
++        -- Goles en Contra
++        SUM(CASE 
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo THEN r.CF_GolesVisitante
++            WHEN r.CF_EquipoVisitante = e.CF_CodigoEquipo THEN r.CF_GolesLocal
++            ELSE 0
++        END) as GC,
++        -- Puntos (3 per win, 1 per draw)
++        SUM(CASE 
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo AND r.CF_GolesLocal > r.CF_GolesVisitante THEN 3
++            WHEN r.CF_EquipoVisitante = e.CF_CodigoEquipo AND r.CF_GolesVisitante > r.CF_GolesLocal THEN 3
++            WHEN (r.CF_EquipoLocal = e.CF_CodigoEquipo OR r.CF_EquipoVisitante = e.CF_CodigoEquipo) 
++                AND r.CF_GolesLocal = r.CF_GolesVisitante THEN 1
++            ELSE 0
++        END) as Puntos,
++        -- Positivos (special away/home calculation)
++        SUM(CASE 
++            -- Away wins: +3
++            WHEN r.CF_EquipoVisitante = e.CF_CodigoEquipo AND r.CF_GolesVisitante > r.CF_GolesLocal THEN 3
++            -- Away draws: +1
++            WHEN r.CF_EquipoVisitante = e.CF_CodigoEquipo AND r.CF_GolesVisitante = r.CF_GolesLocal THEN 1
++            -- Home draws: -1
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo AND r.CF_GolesLocal = r.CF_GolesVisitante THEN -1
++            -- Home losses: -3
++            WHEN r.CF_EquipoLocal = e.CF_CodigoEquipo AND r.CF_GolesLocal < r.CF_GolesVisitante THEN -3
++            ELSE 0
++        END) as Positivos
++    FROM CF_Equipos e
++    LEFT JOIN CF_Resultados r ON e.CodigoEmpresa = r.CodigoEmpresa 
++        AND (r.CF_EquipoLocal = e.CF_CodigoEquipo OR r.CF_EquipoVisitante = e.CF_CodigoEquipo)
++    WHERE e.CodigoEmpresa = {CodigoEmpresa}
++    GROUP BY e.CodigoEmpresa, e.CF_CodigoEquipo, e.CF_Nombre
++),
++RankedTeams AS (
++    SELECT 
++        *,
++        GF - GC as DiferenciaGoles,
++        ROW_NUMBER() OVER (
++            ORDER BY 
++                Puntos DESC,
++                Positivos DESC,
++                (GF - GC) DESC,
++                PJ ASC,
++                CF_Nombre ASC
++        ) as Posicion
++    FROM TeamStats
++)
++SELECT * FROM RankedTeams
++ORDER BY Posicion

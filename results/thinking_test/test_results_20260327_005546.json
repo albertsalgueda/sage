@@ -1,0 +1,26 @@
+{
+  "test": "computer_use_adaptive_thinking",
+  "model": "claude-opus-4-6",
+  "vm_ip": "34.175.32.149",
+  "thinking": "adaptive",
+  "timestamp": "2026-03-27T00:55:46.636664",
+  "total_steps": 2,
+  "completed": false,
+  "steps": [
+    {
+      "step": 1,
+      "timestamp": "20260327_005536",
+      "thinking_length": 76,
+      "thinking_preview": "Let me start by clicking on the center of the screen to wake up the display.",
+      "response_text": "",
+      "action": "left_click",
+      "action_details": {
+        "coordinate": [
+          960,
+          540
+        ]
+      },
+      "screenshot": "/Users/albertsalgueda/Library/CloudStorage/GoogleDrive-albert@salgueda.com/My Drive/Projects/Solitium/sage/results/thinking_test/step_001_20260327_005536.png"
+    }
+  ]
+}

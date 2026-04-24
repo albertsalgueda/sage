@@ -1,0 +1,13 @@
+{
+  "task": "\nYou are controlling a Windows Server 2019 desktop via QEMU.\nThe display is 1024x768. The interface is in Spanish.\n\nYour task:\n1. Look at the current screen and describe what you see.\n2. Close any open windows (Server Manager, etc.)\n3. Look for the Sage 200 application - check desktop icons, taskbar, or Start menu\n4. If you find Sage 200, open it\n5. Describe what you see at each step\n\nTake your time. Describe before acting.\n",
+  "model": "claude-sonnet-4-6-20250514",
+  "vm": "sage-kvm",
+  "steps": [
+    {
+      "step": 1,
+      "action": "api_error",
+      "error": "Error code: 404 - {'type': 'error', 'error': {'type': 'not_found_error', 'message': 'model: claude-sonnet-4-6-20250514'}, 'request_id': 'req_011CZaJpruaU4tXF4hBJLW46'}"
+    }
+  ],
+  "total_steps": 1
+}

@@ -1,0 +1,304 @@
+{
+  "task": "\nYou are controlling a Windows Server 2019 desktop with Sage 200 installed.\nThe display is 1024x768. The interface is in Spanish.\n\nCURRENT STATE: Sage 200 login window is open. You need to log in first.\n\nYOUR MISSION: Log into Sage 200 and navigate to the development console to create a table.\n\nSTEP BY STEP:\n1. The login screen shows Usuario=Administrador. Type the password: Control1234\n   - Click on the password field (Contrase\u00f1a)\n   - Type: Control1234\n   - Click Aceptar button\n\n2. Once logged in, you should see the Sage 200 main interface.\n   Describe what you see.\n\n3. Navigate to: Consola de Administracion (Administration Console)\n   - Look in the top menu bar or sidebar for this option\n   - It may be under a menu like Herramientas (Tools) or Administracion\n\n4. In the Administration Console, go to: Herramientas > Tablas (Tools > Tables)\n   - This is where you can create new database tables\n\n5. Create a new table called CF_Equipos with these fields:\n   - CodigoEquipo (Character, 5 chars, Primary Key)\n   - Nombre (Character, 50 chars)  \n   - JuegaEuropa (Logico/Boolean)\n   - Competicion (Character, 30 chars)\n\n6. Save the table.\n\nTIPS:\n- After each action, wait for the UI to respond\n- The interface is entirely in Spanish\n- If you see a dialog or popup, read it carefully before acting\n- Password is: Control1234\n- If something doesnt work, try an alternative approach\n",
+  "model": "claude-haiku-4-5-20251001",
+  "steps": [
+    {
+      "step": 1,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          433,
+          399
+        ]
+      }
+    },
+    {
+      "step": 2,
+      "action": "type",
+      "details": {
+        "action": "type",
+        "text": "Control1234"
+      }
+    },
+    {
+      "step": 3,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          693,
+          541
+        ]
+      }
+    },
+    {
+      "step": 4,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 3
+      }
+    },
+    {
+      "step": 5,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          511,
+          442
+        ]
+      }
+    },
+    {
+      "step": 6,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          693,
+          541
+        ]
+      }
+    },
+    {
+      "step": 7,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 3
+      }
+    },
+    {
+      "step": 8,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          511,
+          442
+        ]
+      }
+    },
+    {
+      "step": 9,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          433,
+          451
+        ]
+      }
+    },
+    {
+      "step": 10,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          693,
+          541
+        ]
+      }
+    },
+    {
+      "step": 11,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 4
+      }
+    },
+    {
+      "step": 12,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          784,
+          268
+        ]
+      }
+    },
+    {
+      "step": 13,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          783,
+          541
+        ]
+      }
+    },
+    {
+      "step": 14,
+      "action": "double_click",
+      "details": {
+        "action": "double_click",
+        "coordinate": [
+          45,
+          155
+        ]
+      }
+    },
+    {
+      "step": 15,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 2
+      }
+    },
+    {
+      "step": 16,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          433,
+          399
+        ]
+      }
+    },
+    {
+      "step": 17,
+      "action": "type",
+      "details": {
+        "action": "type",
+        "text": "Control1234"
+      }
+    },
+    {
+      "step": 18,
+      "action": "key",
+      "details": {
+        "action": "key",
+        "text": "Return"
+      }
+    },
+    {
+      "step": 19,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 4
+      }
+    },
+    {
+      "step": 20,
+      "action": "key",
+      "details": {
+        "action": "key",
+        "text": "Escape"
+      }
+    },
+    {
+      "step": 21,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          511,
+          442
+        ]
+      }
+    },
+    {
+      "step": 22,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          783,
+          541
+        ]
+      }
+    },
+    {
+      "step": 23,
+      "action": "right_click",
+      "details": {
+        "action": "right_click",
+        "coordinate": [
+          45,
+          155
+        ]
+      }
+    },
+    {
+      "step": 24,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          155,
+          213
+        ]
+      }
+    },
+    {
+      "step": 25,
+      "action": "wait",
+      "details": {
+        "action": "wait",
+        "duration": 3
+      }
+    },
+    {
+      "step": 26,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          783,
+          541
+        ]
+      }
+    },
+    {
+      "step": 27,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          119,
+          753
+        ]
+      }
+    },
+    {
+      "step": 28,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          171,
+          753
+        ]
+      }
+    },
+    {
+      "step": 29,
+      "action": "key",
+      "details": {
+        "action": "key",
+        "text": "win+r"
+      }
+    },
+    {
+      "step": 30,
+      "action": "left_click",
+      "details": {
+        "action": "left_click",
+        "coordinate": [
+          208,
+          403
+        ]
+      }
+    }
+  ],
+  "total": 30
+}

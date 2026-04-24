@@ -1,0 +1,114 @@
+--- solution (SQL)
++++ generated (SQL)
+@@ -1,42 +1,75 @@
+-CREATE TABLE dbo.[CF_Clasificacion] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Posicion] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Equipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosJugados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosGanados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosEmpatados] smallint NOT NULL DEFAULT ((0)),
+-  [CF_PartidosPerdidos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesFavor] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesContra] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Puntos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Positivos] smallint NOT NULL DEFAULT ((0)),
+-  [CF_DiferenciaGoles] smallint NOT NULL DEFAULT ((0))
+-)
++-- Tabla de Equipos
++CREATE TABLE [dbo].[CF_Equipos] (
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_CodigoEquipo] [int] NOT NULL DEFAULT ((0)),
++    [CF_Nombre] [varchar](30) NOT NULL DEFAULT (''),
++    [CF_JuegaEuropa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Competicion] [smallint] NOT NULL DEFAULT ((1))
++) ON [PRIMARY]
+ 
+-CREATE TABLE dbo.[CF_Equipos] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_CodigoEquipo] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Nombre] varchar(30) NOT NULL DEFAULT (''),
+-  [CF_JuegaEuropa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Competicion] smallint NOT NULL DEFAULT ((1))
+-)
++-- Tabla de Resultados
++CREATE TABLE [dbo].[CF_Resultados] (
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Jornada] [int] NOT NULL DEFAULT ((0)),
++    [CF_EquipoLocal] [int] NOT NULL DEFAULT ((0)),
++    [CF_GolesLocal] [int] NOT NULL DEFAULT ((0)),
++    [CF_EquipoVisitante] [int] NOT NULL DEFAULT ((0)),
++    [CF_GolesVisitante] [int] NOT NULL DEFAULT ((0)),
++    [CF_Fecha] [datetime] NOT NULL DEFAULT (getdate())
++) ON [PRIMARY]
+ 
+-CREATE TABLE dbo.[CF_Resultados] (
+-  [CodigoEmpresa] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Jornada] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesLocal] smallint NOT NULL DEFAULT ((0)),
+-  [CF_EquipoVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_GolesVisitante] smallint NOT NULL DEFAULT ((0)),
+-  [CF_Fecha] datetime NOT NULL DEFAULT (getdate())
+-)
++-- Tabla de Clasificacion
++CREATE TABLE [dbo].[CF_Clasificacion] (
++    [CodigoEmpresa] [smallint] NOT NULL DEFAULT ((0)),
++    [CF_Posicion] [int] NOT NULL DEFAULT ((0)),
++    [CF_Equipo] [int] NOT NULL DEFAULT ((0)),
++    [CF_PartidosJugados] [int] NOT NULL DEFAULT ((0)),
++    [CF_PartidosGanados] [int] NOT NULL DEFAULT ((0)),
++    [CF_PartidosEmpatados] [int] NOT NULL DEFAULT ((0)),
++    [CF_PartidosPerdidos] [int] NOT NULL DEFAULT ((0)),
++    [CF_GolesFavor] [int] NOT NULL DEFAULT ((0)),
++    [CF_GolesContra] [int] NOT NULL DEFAULT ((0)),
++    [CF_Puntos] [int] NOT NULL DEFAULT ((0)),
++    [CF_Positivos] [int] NOT NULL DEFAULT ((0)),
++    [CF_DiferenciaGoles] [int] NOT NULL DEFAULT ((0))
++) ON [PRIMARY]
+ 
+ 
+-ALTER TABLE [CF_Clasificacion] WITH NOCHECK ADD CONSTRAINT [CF_Clasificacion_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Posicion],[CF_Equipo]) ON [PRIMARY]
++-- Clave principal de Equipos
++ALTER TABLE [CF_Equipos] WITH NOCHECK ADD CONSTRAINT [CF_Equipos_Principal] 
++PRIMARY KEY CLUSTERED ([CodigoEmpresa], [CF_CodigoEquipo]) ON [PRIMARY]
+ 
+-ALTER TABLE [CF_Equipos] WITH NOCHECK ADD CONSTRAINT [CF_Equipos_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_CodigoEquipo]) ON [PRIMARY]
++-- Clave principal de Resultados
++ALTER TABLE [CF_Resultados] WITH NOCHECK ADD CONSTRAINT [CF_Resultados_Principal] 
++PRIMARY KEY CLUSTERED ([CodigoEmpresa], [CF_Jornada], [CF_EquipoLocal], [CF_EquipoVisitante]) ON [PRIMARY]
+ 
+-ALTER TABLE [CF_Resultados] WITH NOCHECK ADD CONSTRAINT [CF_Resultados_Principal]
+-  PRIMARY KEY CLUSTERED ([CodigoEmpresa],[CF_Jornada],[CF_EquipoLocal],[CF_EquipoVisitante]) ON [PRIMARY]
++-- Clave principal de Clasificacion
++ALTER TABLE [CF_Clasificacion] WITH NOCHECK ADD CONSTRAINT [CF_Clasificacion_Principal] 
++PRIMARY KEY CLUSTERED ([CodigoEmpresa], [CF_Posicion], [CF_Equipo]) ON [PRIMARY]
++
++
++-- Query para obtener clasificación ordenada
++-- Nombre: CF_ClasificacionOrdenada
++SELECT 
++    c.CodigoEmpresa,
++    ROW_NUMBER() OVER (
++        ORDER BY c.CF_Puntos DESC, 
++                 c.CF_Positivos DESC, 
++                 c.CF_DiferenciaGoles DESC, 
++                 c.CF_PartidosJugados ASC, 
++                 e.CF_Nombre ASC
++    ) as NuevaPosicion,
++    c.CF_Equipo,
++    e.CF_Nombre,
++    c.CF_PartidosJugados,
++    c.CF_PartidosGanados,
++    c.CF_PartidosEmpatados,
++    c.CF_PartidosPerdidos,
++    c.CF_GolesFavor,
++    c.CF_GolesContra,
++    c.CF_Puntos,
++    c.CF_Positivos,
++    c.CF_DiferenciaGoles
++FROM CF_Clasificacion c
++INNER JOIN CF_Equipos e ON c.CodigoEmpresa = e.CodigoEmpresa AND c.CF_Equipo = e.CF_CodigoEquipo
++WHERE c.CodigoEmpresa = ?CodigoEmpresa

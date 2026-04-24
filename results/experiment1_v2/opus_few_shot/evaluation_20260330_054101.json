@@ -1,0 +1,339 @@
+{
+  "timestamp": "2026-03-30T05:41:01.262608",
+  "checks": {
+    "sql_tables": {
+      "CF_Equipos": {
+        "present": true,
+        "fields_found": [
+          "CF_CodigoEquipo",
+          "CF_Nombre",
+          "CF_JuegaEuropa",
+          "CF_Competicion"
+        ],
+        "fields_missing": [],
+        "field_score": 1.0
+      },
+      "CF_Resultados": {
+        "present": true,
+        "fields_found": [
+          "CF_Jornada",
+          "CF_EquipoLocal",
+          "CF_GolesLocal",
+          "CF_EquipoVisitante",
+          "CF_GolesVisitante",
+          "CF_Fecha"
+        ],
+        "fields_missing": [],
+        "field_score": 1.0
+      },
+      "CF_Clasificacion": {
+        "present": true,
+        "fields_found": [
+          "CF_Posicion",
+          "CF_Equipo",
+          "CF_PartidosJugados",
+          "CF_PartidosGanados",
+          "CF_PartidosEmpatados",
+          "CF_PartidosPerdidos",
+          "CF_GolesFavor",
+          "CF_GolesContra",
+          "CF_Puntos",
+          "CF_Positivos",
+          "CF_DiferenciaGoles"
+        ],
+        "fields_missing": [],
+        "field_score": 1.0
+      }
+    },
+    "primary_keys": {
+      "CF_Clasificacion": {
+        "has_pk": true,
+        "correct_columns": true
+      },
+      "CF_Equipos": {
+        "has_pk": true,
+        "correct_columns": true
+      },
+      "CF_Resultados": {
+        "has_pk": true,
+        "correct_columns": true
+      }
+    },
+    "4gl_keywords": {
+      "AbreConsulta": {
+        "present": true,
+        "description": "Open query workspace"
+      },
+      "Seleccion": {
+        "present": true,
+        "description": "Execute query / filter records"
+      },
+      "Primero": {
+        "present": true,
+        "description": "Move to first record"
+      },
+      "Siguiente": {
+        "present": true,
+        "description": "Move to next record"
+      },
+      "EjecutaSQL": {
+        "present": true,
+        "description": "Execute raw SQL"
+      },
+      "EjecutaBorra": {
+        "present": true,
+        "description": "Mass delete records"
+      },
+      "FrmControl": {
+        "present": true,
+        "description": "Screen control method"
+      },
+      "MsgBox": {
+        "present": true,
+        "description": "Message dialog"
+      },
+      "Gosub": {
+        "present": true,
+        "description": "Subroutine call"
+      },
+      "Return": {
+        "present": true,
+        "description": "Return from subroutine"
+      },
+      "Whilen": {
+        "present": true,
+        "description": "While loop (numeric)"
+      },
+      "Ifn": {
+        "present": true,
+        "description": "If condition (numeric)"
+      },
+      "ListadoEjecuta": {
+        "present": true,
+        "description": "Launch report"
+      },
+      "IniciaRegistro": {
+        "present": false,
+        "description": "Initialize new record"
+      },
+      "CierraRegistro": {
+        "present": true,
+        "description": "Close query workspace"
+      },
+      "Nuevo": {
+        "present": false,
+        "description": "Insert new record"
+      },
+      "RefrescaRegistro": {
+        "present": false,
+        "description": "Refresh data"
+      },
+      "_summary": {
+        "found": 14,
+        "total": 17,
+        "score": 0.8235
+      }
+    },
+    "ranking_query": {
+      "has_select": true,
+      "has_join": true,
+      "order_by_puntos": true,
+      "order_by_positivos": true,
+      "order_by_dg": true,
+      "order_by_nombre": true,
+      "score": 1.0
+    },
+    "sql_validity": {
+      "available": true,
+      "total": 1,
+      "valid": 1,
+      "errors": [],
+      "score": 1.0
+    },
+    "sage_conventions": {
+      "codigoempresa_first": {
+        "pass": true,
+        "detail": "3/3 tables"
+      },
+      "uses_smallint": {
+        "pass": true,
+        "detail": "smallint for integers"
+      },
+      "uses_varchar": {
+        "pass": true,
+        "detail": "varchar for text"
+      },
+      "uses_datetime": {
+        "pass": true,
+        "detail": "datetime for dates"
+      },
+      "default_numeric": {
+        "pass": true,
+        "detail": "DEFAULT ((0)) for numeric"
+      },
+      "default_string": {
+        "pass": true,
+        "detail": "DEFAULT ('') for strings"
+      },
+      "default_date": {
+        "pass": true,
+        "detail": "DEFAULT (getdate()) for dates"
+      },
+      "cf_prefix_used": {
+        "pass": true,
+        "detail": "379 CF_ prefixed identifiers"
+      },
+      "competicion_default_1": {
+        "pass": false,
+        "detail": "CF_Competicion DEFAULT ((0)) — should be ((1)) for Vacio"
+      },
+      "all_not_null": {
+        "pass": true,
+        "detail": "27 NOT NULL clauses"
+      },
+      "_summary": {
+        "passed": 9,
+        "total": 10,
+        "score": 0.9
+      }
+    },
+    "artifact_completeness": {
+      "tables": {
+        "found": 3,
+        "total": 3,
+        "items": {
+          "CF_Equipos": true,
+          "CF_Resultados": true,
+          "CF_Clasificacion": true
+        }
+      },
+      "queries": {
+        "found": 3,
+        "total": 5,
+        "items": {
+          "CF_Equipos": true,
+          "CF_Resultados": true,
+          "CF_Clasificacion": true,
+          "CF_ClasificacionOrden": false,
+          "CF_ClasificacionLiga_Lis": false
+        }
+      },
+      "screens": {
+        "found": 2,
+        "total": 2,
+        "items": {
+          "CF_Equipos": true,
+          "CF_Resultados": true
+        }
+      },
+      "calculations": {
+        "found": 2,
+        "total": 3,
+        "items": {
+          "CF_Clasificacion": false,
+          "CF_Equipos": true,
+          "CF_Resultados": true
+        }
+      },
+      "report": {
+        "found": 1,
+        "total": 1,
+        "items": {
+          "CF_ClasificacionOrden_Lis": true
+        }
+      },
+      "operations": {
+        "found": 0,
+        "total": 3,
+        "items": {
+          "OP_CF_Clasificacion": false,
+          "OP_CF_Equipos": false,
+          "OP_CF_Resultados": false
+        }
+      },
+      "_summary": {
+        "found": 11,
+        "total": 17,
+        "score": 0.6471
+      }
+    },
+    "business_logic": {
+      "juegaeuropa_disables_competicion": {
+        "pass": true,
+        "detail": "FrmControl CONTROLENABLED toggles Competicion based on JuegaEuropa"
+      },
+      "competicion_validation": {
+        "pass": true,
+        "detail": "Apli.CancelarAccion when JuegaEuropa=yes but Competicion empty"
+      },
+      "points_victory_3": {
+        "pass": false,
+        "detail": "Victory = +3 points"
+      },
+      "points_draw_1": {
+        "pass": true,
+        "detail": "Draw = +1 point"
+      },
+      "positivos_calculated": {
+        "pass": true,
+        "detail": "Positivos: local loss=-3, local draw=-1, visitor win=+3, visitor draw=+1"
+      },
+      "diferencia_goles": {
+        "pass": true,
+        "detail": "DiferenciaGoles = GolesFavor - GolesContra"
+      },
+      "ordering_correct": {
+        "pass": true,
+        "detail": "ORDER BY Puntos DESC, Positivos DESC, DG DESC"
+      },
+      "clears_before_recalc": {
+        "pass": true,
+        "detail": "Clears CF_Clasificacion before recalculation"
+      },
+      "launches_report": {
+        "pass": true,
+        "detail": "ListadoEjecuta called to launch classification report"
+      },
+      "ejecutasql_exec": {
+        "pass": true,
+        "detail": "Uses EjecutaSQL(\"exec:=\" & sql) for direct SQL execution"
+      },
+      "fecha_default_now": {
+        "pass": true,
+        "detail": "CF_Fecha defaults to current date (NOW/getdate)"
+      },
+      "_summary": {
+        "passed": 10,
+        "total": 11,
+        "score": 0.9091
+      }
+    },
+    "similarity": {
+      "overall": 0.0246,
+      "sql": 0.0321,
+      "4gl": 0.0563
+    }
+  },
+  "summary": {
+    "sql_tables": 1.0,
+    "primary_keys": 1.0,
+    "4gl_keywords": 0.8235,
+    "ranking_query": 1.0,
+    "sql_validity": 1.0,
+    "sage_conventions": 0.9,
+    "artifact_completeness": 0.6471,
+    "business_logic": 0.9091,
+    "similarity_overall": 0.0246,
+    "similarity_sql": 0.0321,
+    "similarity_4gl": 0.0563,
+    "overall_grade": 84.8
+  },
+  "config": "opus_few_shot",
+  "model": "claude-opus-4-20250514",
+  "prompt_variant": "few_shot",
+  "usage": {
+    "input_tokens": 3781,
+    "output_tokens": 8192,
+    "model": "claude-opus-4-20250514"
+  }
+}
